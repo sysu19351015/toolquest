@@ -16,6 +16,8 @@ Most agent demos show only the final answer. ToolQuest makes the path testable:
 - strict, machine-readable tool results;
 - explicit run isolation and optimistic state versions;
 - idempotency keys for safe action retries;
+- atomic local run persistence and restart recovery;
+- deterministic replay verification and Markdown reports;
 - JSONL traces with redacted final answers;
 - no LLM judge and no external service required.
 
@@ -47,6 +49,10 @@ like this; replace the path with an absolute path on your machine:
 4. Inspect visible target IDs to discover clues and interaction IDs.
 5. Use move or use with a unique actionId and the latest stateVersion.
 6. Call submit when the final mechanism is ready and you know the answer.
+7. Call replay_run to verify the trace and export_report for a Markdown result.
+
+After a client or server restart, call get_run with the original runId and
+continue from the returned stateVersion and public snapshot.
 
 ## MCP tools
 
@@ -54,6 +60,9 @@ like this; replace the path with an absolute path on your machine:
 | --- | --- | --- |
 | list_rooms | Discover challenges, difficulty, and par actions | No |
 | start_run | Create an isolated deterministic run | Creates a run |
+| get_run | Resume a persisted run with a public snapshot | No |
+| replay_run | Rebuild and verify a run from its event log | No |
+| export_report | Return a redacted Markdown benchmark report | No |
 | look | Read location, objects, exits, and inventory | No |
 | inspect | Read an object's clue and interactions | No |
 | move | Move to a destination returned by look | Yes |
@@ -90,14 +99,21 @@ prerequisite, remain successful MCP calls
 with a world_failure event. Invalid IDs, stale versions, and missing runs are
 recoverable MCP tool errors with a stable code and recoveryHint.
 
-## Traces
+## Persistent runs and traces
 
-By default, the stdio server appends public events to:
+By default, the stdio server atomically persists authoritative run state and
+appends a separate public event trace:
 
+    .toolquest/state/<runId>.json
     .toolquest/runs/<runId>.jsonl
 
-Set TOOLQUEST_DISABLE_TRACES=1 to disable disk traces. The final answer itself
-is never written to the public event input.
+Use TOOLQUEST_STATE_DIR to change the state directory. Set
+TOOLQUEST_DISABLE_STATE=1 for ephemeral in-memory runs, or
+TOOLQUEST_DISABLE_TRACES=1 to disable public traces.
+
+State files are private server data. Action arguments are stored only as
+SHA-256 idempotency digests, and the submitted answer is never written in
+plaintext. Public JSONL events contain only answer length and outcome.
 
 ## Architecture
 
@@ -122,8 +138,9 @@ The domain and application layers do not import the MCP SDK. See
     npm run build
     npm run check
 
-The test suite includes domain and application tests, an in-memory MCP contract
-test, and a real stdio subprocess test.
+The test suite includes domain and application tests, restart recovery,
+tamper-detecting replay, report redaction, an in-memory MCP contract test, and
+a real stdio subprocess test.
 
 ## Built-in rooms
 
@@ -137,11 +154,12 @@ as scenarios become more complex.
 
 ## Current scope
 
-Version 0.2 includes two built-in rooms, room discovery, chained interaction
-prerequisites, local stdio transport, in-memory runs, JSONL traces, and
-room-aware deterministic scoring. It does not yet include remote HTTP,
-authentication, crash recovery, a replay UI, community room loading, or a
-public model leaderboard.
+Version 0.3 includes two built-in rooms, ten MCP tools, atomic local run
+persistence, restart recovery, deterministic event replay, redacted Markdown
+reports, JSONL traces, and room-aware scoring. The file repository supports one
+server process per state directory. Remote HTTP, authentication, a replay UI,
+community room loading, multi-process transactions, and a public model
+leaderboard remain out of scope.
 
 ## Contributing and security
 

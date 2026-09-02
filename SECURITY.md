@@ -2,7 +2,7 @@
 
 ## Supported version
 
-Security fixes currently target the latest 0.1.x release.
+Security fixes currently target the latest 0.3.x release.
 
 ## Reporting
 
@@ -14,9 +14,14 @@ suggested mitigation.
 
 ## Scope and threat model
 
-ToolQuest 0.1 is a local stdio MCP server. Its tools operate only on an
-in-memory virtual room and local public trace files under the configured trace
-directory. It does not execute room scripts, access remote services, or expose
-OS filesystem tools to an agent.
+ToolQuest 0.3 is a local stdio MCP server. Its tools operate on virtual rooms,
+private local run-state files, and public local trace files under configured
+directories. It does not execute room scripts, access remote services, or
+expose OS filesystem tools to an agent. export_report returns Markdown content
+and does not write an agent-selected path.
+
+Persisted state contains room state, public events, cached results, and SHA-256
+action digests. Submitted answers are not stored in plaintext. Treat the state
+directory as private server data and do not publish it.
 
 Tool annotations are descriptive hints, not an authorization boundary.

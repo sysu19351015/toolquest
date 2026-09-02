@@ -1,6 +1,6 @@
 {
   "name": "toolquest-mcp",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "A deterministic escape room testbed for tool-using agents, exposed as an MCP server.",
   "type": "module",
   "main": "./dist/index.js",
