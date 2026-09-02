@@ -1,0 +1,98 @@
+import { Client } from "@modelcontextprotocol/sdk/client/index.js";
+import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
+import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { createToolQuestServer } from "../src/mcp/server-factory.js";
+import { createTestHarness } from "./helpers.js";
+
+function envelope(structuredContent: unknown): Record<string, unknown> {
+  return typeof structuredContent === "object" &&
+    structuredContent !== null &&
+    !Array.isArray(structuredContent)
+    ? (structuredContent as Record<string, unknown>)
+    : {};
+}
+
+describe("ToolQuest MCP contract", () => {
+  let client: Client;
+  let server: McpServer;
+
+  beforeEach(async () => {
+    const [clientTransport, serverTransport] =
+      InMemoryTransport.createLinkedPair();
+    server = createToolQuestServer(createTestHarness().service);
+    client = new Client({ name: "toolquest-test", version: "1.0.0" });
+    await server.connect(serverTransport);
+    await client.connect(clientTransport);
+  });
+
+  afterEach(async () => {
+    await client.close();
+    await server.close();
+  });
+
+  it("exposes exactly the six stable tools with schemas and annotations", async () => {
+    const listed = await client.listTools();
+
+    expect(listed.tools.map((tool) => tool.name)).toEqual([
+      "start_run",
+      "look",
+      "inspect",
+      "move",
+      "use",
+      "submit"
+    ]);
+    for (const tool of listed.tools) {
+      expect(tool.inputSchema.type).toBe("object");
+      expect(tool.outputSchema?.type).toBe("object");
+      expect(tool.annotations?.openWorldHint).toBe(false);
+      expect(tool.annotations?.destructiveHint).toBe(false);
+    }
+    expect(
+      listed.tools.find((tool) => tool.name === "look")?.annotations
+        ?.readOnlyHint
+    ).toBe(true);
+    expect(
+      listed.tools.find((tool) => tool.name === "move")?.annotations
+        ?.readOnlyHint
+    ).toBe(false);
+  });
+
+  it("returns structured content that can drive the next tool call", async () => {
+    const started = await client.callTool({
+      name: "start_run",
+      arguments: { roomId: "the-vault", seed: "mcp-test" }
+    });
+    const startEnvelope = envelope(started.structuredContent);
+    expect(startEnvelope["ok"]).toBe(true);
+    expect(startEnvelope["stateVersion"]).toBe(0);
+    expect(typeof startEnvelope["runId"]).toBe("string");
+
+    const looked = await client.callTool({
+      name: "look",
+      arguments: { runId: startEnvelope["runId"] }
+    });
+    const lookEnvelope = envelope(looked.structuredContent);
+    expect(looked.isError).not.toBe(true);
+    expect(lookEnvelope["ok"]).toBe(true);
+    const lookData = envelope(lookEnvelope["data"]);
+    const location = envelope(lookData["location"]);
+    expect(location["id"]).toBe("foyer");
+  });
+
+  it("maps domain failures to recoverable MCP tool errors", async () => {
+    const result = await client.callTool({
+      name: "look",
+      arguments: { runId: "run_does-not-exist" }
+    });
+
+    expect(result.isError).toBe(true);
+    expect(result.structuredContent).toEqual(
+      expect.objectContaining({
+        ok: false,
+        code: "RUN_NOT_FOUND",
+        retryable: true
+      })
+    );
+  });
+});

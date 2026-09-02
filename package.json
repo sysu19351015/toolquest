@@ -1,0 +1,55 @@
+{
+  "name": "toolquest-mcp",
+  "version": "0.1.0",
+  "description": "A deterministic escape room testbed for tool-using agents, exposed as an MCP server.",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "bin": {
+    "toolquest-mcp": "./dist/server.js"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "lint": "eslint .",
+    "test": "npm run build --silent && vitest run",
+    "test:watch": "vitest",
+    "start": "node dist/server.js",
+    "prepack": "npm run build",
+    "check": "npm run typecheck && npm run lint && npm test"
+  },
+  "keywords": [
+    "agent",
+    "benchmark",
+    "mcp",
+    "model-context-protocol",
+    "tool-calling"
+  ],
+  "license": "MIT",
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "1.30.0",
+    "zod": "4.5.4"
+  },
+  "devDependencies": {
+    "@eslint/js": "10.0.1",
+    "@types/node": "26.4.1",
+    "eslint": "10.9.1",
+    "typescript": "6.0.3",
+    "typescript-eslint": "8.69.0",
+    "vitest": "4.1.11"
+  }
+}
