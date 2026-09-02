@@ -31,12 +31,15 @@ describe("ToolQuest MCP contract", () => {
     await server.close();
   });
 
-  it("exposes exactly the seven stable tools with schemas and annotations", async () => {
+  it("exposes exactly the ten stable tools with schemas and annotations", async () => {
     const listed = await client.listTools();
 
     expect(listed.tools.map((tool) => tool.name)).toEqual([
       "list_rooms",
       "start_run",
+      "get_run",
+      "replay_run",
+      "export_report",
       "look",
       "inspect",
       "move",
@@ -57,6 +60,40 @@ describe("ToolQuest MCP contract", () => {
       listed.tools.find((tool) => tool.name === "move")?.annotations
         ?.readOnlyHint
     ).toBe(false);
+  });
+
+  it("inspects, replays, and reports a run without mutating it", async () => {
+    const started = await client.callTool({
+      name: "start_run",
+      arguments: { roomId: "the-vault", seed: "inspection-test" }
+    });
+    const startEnvelope = envelope(started.structuredContent);
+    const runId = startEnvelope["runId"];
+
+    const inspected = await client.callTool({
+      name: "get_run",
+      arguments: { runId }
+    });
+    const replayed = await client.callTool({
+      name: "replay_run",
+      arguments: { runId }
+    });
+    const reported = await client.callTool({
+      name: "export_report",
+      arguments: { runId }
+    });
+    const inspectedEnvelope = envelope(inspected.structuredContent);
+    const replayEnvelope = envelope(replayed.structuredContent);
+    const replayData = envelope(replayEnvelope["data"]);
+    const replay = envelope(replayData["replay"]);
+    const reportEnvelope = envelope(reported.structuredContent);
+    const reportData = envelope(reportEnvelope["data"]);
+
+    expect(inspectedEnvelope["eventSeq"]).toBe(1);
+    expect(inspectedEnvelope["events"]).toEqual([]);
+    expect(replay["valid"]).toBe(true);
+    expect(reportData["format"]).toBe("markdown");
+    expect(reportData["content"]).toContain("# ToolQuest Run Report");
   });
 
   it("discovers rooms without creating a run", async () => {
