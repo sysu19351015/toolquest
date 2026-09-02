@@ -9,6 +9,7 @@ import {
   ListRoomsInputSchema,
   LookInputSchema,
   MoveInputSchema,
+  RunQueryInputSchema,
   StartRunInputSchema,
   SubmitInputSchema,
   ToolEnvelopeSchema,
@@ -27,10 +28,10 @@ export function createToolQuestServer(
   service: RunService = createDefaultRunService()
 ): McpServer {
   const server = new McpServer(
-    { name: "toolquest", version: "0.2.0" },
+    { name: "toolquest", version: "0.3.0" },
     {
       instructions:
-        "ToolQuest is a deterministic escape-room testbed. Call list_rooms to discover challenges, then start_run and look. Use IDs exactly as returned. Mutating tools require a unique actionId and the latest stateVersion. Calls affect only the virtual room."
+        "ToolQuest is a deterministic escape-room testbed with persistent runs. Call list_rooms to discover challenges, then start_run and look. Use get_run to resume after a client or server restart. Mutating tools require a unique actionId and the latest stateVersion. Calls affect only the virtual room."
     }
   );
 
@@ -68,6 +69,60 @@ export function createToolQuestServer(
       }
     },
     (args) => handle(() => service.startRun(args))
+  );
+
+  server.registerTool(
+    "get_run",
+    {
+      title: "Get ToolQuest Run",
+      description:
+        "Resume a persisted run by reading its public current snapshot, status, stateVersion, stateHash, event count, and score when terminal. This does not append an event.",
+      inputSchema: RunQueryInputSchema,
+      outputSchema: ToolEnvelopeSchema,
+      annotations: {
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: false
+      }
+    },
+    ({ runId }) => handle(() => service.getRun(runId))
+  );
+
+  server.registerTool(
+    "replay_run",
+    {
+      title: "Replay ToolQuest Run",
+      description:
+        "Deterministically rebuild a run from its redacted event log and verify every stateVersion, stateHash, outcome, and final state. This does not change the run.",
+      inputSchema: RunQueryInputSchema,
+      outputSchema: ToolEnvelopeSchema,
+      annotations: {
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: false
+      }
+    },
+    ({ runId }) => handle(() => service.replayRun(runId))
+  );
+
+  server.registerTool(
+    "export_report",
+    {
+      title: "Export ToolQuest Run Report",
+      description:
+        "Generate a Markdown benchmark report containing run metadata, score, replay verification, and a redacted event timeline. Returns content without writing a file.",
+      inputSchema: RunQueryInputSchema,
+      outputSchema: ToolEnvelopeSchema,
+      annotations: {
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: false
+      }
+    },
+    ({ runId }) => handle(() => service.exportReport(runId))
   );
 
   server.registerTool(

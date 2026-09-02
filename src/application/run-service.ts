@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import {
   calculateScore,
   createInitialState,
@@ -9,7 +10,9 @@ import {
   performSubmit,
   performUse
 } from "../domain/engine.js";
+import { replayRunRecord } from "../domain/replay.js";
 import { ToolQuestError } from "../domain/errors.js";
+import { createRunReport } from "./run-report.js";
 import type {
   DomainActionResult,
   GameEvent,
@@ -86,6 +89,95 @@ export class RunService {
       message: `${rooms.length} ToolQuest rooms are available.`,
       data: { rooms },
       events: []
+    };
+  }
+
+  public getRun(runId: string): ToolQuestSuccess {
+    const record = this.requireRun(runId);
+    const room = this.requireRoom(record.state.roomId);
+    const publicView = lookAround(room, record.state);
+    const score =
+      record.state.status === "active"
+        ? undefined
+        : calculateScore(
+            record.state.status,
+            record.events,
+            room.parActions
+          );
+    return {
+      ok: true,
+      runId,
+      eventSeq: record.eventSeq,
+      stateVersion: record.stateVersion,
+      stateHash: hashGameState(record.state),
+      status: record.state.status,
+      message: `Run '${runId}' is ${record.state.status}.`,
+      data: {
+        room: {
+          id: room.id,
+          title: room.title,
+          version: room.version,
+          difficulty: room.difficulty,
+          parActions: room.parActions
+        },
+        startedAt: record.state.startedAt,
+        recordedEvents: record.events.length,
+        cachedActions: Object.keys(record.actions).length,
+        snapshot: publicView.data
+      },
+      events: [],
+      ...(score === undefined ? {} : { score })
+    };
+  }
+
+  public replayRun(runId: string): ToolQuestSuccess {
+    const record = this.requireRun(runId);
+    const room = this.requireRoom(record.state.roomId);
+    const replay = replayRunRecord(room, record);
+    return {
+      ok: true,
+      runId,
+      eventSeq: record.eventSeq,
+      stateVersion: record.stateVersion,
+      stateHash: hashGameState(record.state),
+      status: record.state.status,
+      message: replay.valid
+        ? `Replay verified all ${replay.totalEvents} events.`
+        : `Replay found ${replay.mismatches.length} mismatch(es).`,
+      data: { replay },
+      events: []
+    };
+  }
+
+  public exportReport(runId: string): ToolQuestSuccess {
+    const record = this.requireRun(runId);
+    const room = this.requireRoom(record.state.roomId);
+    const replay = replayRunRecord(room, record);
+    const score =
+      record.state.status === "active"
+        ? undefined
+        : calculateScore(
+            record.state.status,
+            record.events,
+            room.parActions
+          );
+    const content = createRunReport(room, record, replay, score);
+    return {
+      ok: true,
+      runId,
+      eventSeq: record.eventSeq,
+      stateVersion: record.stateVersion,
+      stateHash: hashGameState(record.state),
+      status: record.state.status,
+      message: "Markdown run report generated.",
+      data: {
+        format: "markdown",
+        fileName: `${runId}.md`,
+        content,
+        replayValid: replay.valid
+      },
+      events: [],
+      ...(score === undefined ? {} : { score })
     };
   }
 
@@ -249,11 +341,15 @@ export class RunService {
     operation: (room: RoomDefinition, state: GameState) => DomainActionResult
   ): ToolQuestSuccess {
     const record = this.requireRun(command.runId);
-    const actionFingerprint = fingerprint({
-      tool,
-      expectedStateVersion: command.expectedStateVersion,
-      ...privateInput
-    });
+    const actionFingerprint = createHash("sha256")
+      .update(
+        fingerprint({
+          tool,
+          expectedStateVersion: command.expectedStateVersion,
+          ...privateInput
+        })
+      )
+      .digest("hex");
     const cached = record.actions[command.actionId];
     if (cached !== undefined) {
       if (cached.fingerprint !== actionFingerprint) {

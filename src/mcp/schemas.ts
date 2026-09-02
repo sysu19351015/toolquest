@@ -55,6 +55,8 @@ export const LookInputSchema = z
   })
   .strict();
 
+export const RunQueryInputSchema = LookInputSchema;
+
 export const InspectInputSchema = z
   .object({
     runId: RunIdSchema.describe("Opaque run ID returned by start_run."),
