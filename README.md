@@ -41,16 +41,18 @@ like this; replace the path with an absolute path on your machine:
 
 ## Agent loop
 
-1. Call start_run with roomId set to the-vault.
-2. Call look with the returned runId.
-3. Inspect visible target IDs to discover clues and interaction IDs.
-4. Use move or use with a unique actionId and the latest stateVersion.
-5. Call submit when the vault is unlocked and you know the code.
+1. Call list_rooms and choose a challenge.
+2. Call start_run with the selected roomId.
+3. Call look with the returned runId.
+4. Inspect visible target IDs to discover clues and interaction IDs.
+5. Use move or use with a unique actionId and the latest stateVersion.
+6. Call submit when the final mechanism is ready and you know the answer.
 
 ## MCP tools
 
 | Tool | Purpose | Changes world state |
 | --- | --- | --- |
+| list_rooms | Discover challenges, difficulty, and par actions | No |
 | start_run | Create an isolated deterministic run | Creates a run |
 | look | Read location, objects, exits, and inventory | No |
 | inspect | Read an object's clue and interactions | No |
@@ -83,7 +85,8 @@ structuredContent for deterministic automation:
       "events": []
     }
 
-Normal game failures, such as using the wrong item, remain successful MCP calls
+Normal game failures, such as using the wrong item or missing an interaction
+prerequisite, remain successful MCP calls
 with a world_failure event. Invalid IDs, stale versions, and missing runs are
 recoverable MCP tool errors with a stable code and recoveryHint.
 
@@ -122,10 +125,21 @@ The domain and application layers do not import the MCP SDK. See
 The test suite includes domain and application tests, an in-memory MCP contract
 test, and a real stdio subprocess test.
 
+## Built-in rooms
+
+| Room ID | Difficulty | What it tests |
+| --- | --- | --- |
+| the-vault | Starter | Exploration, clue combination, item use |
+| signal-station | Intermediate | Multi-location planning, consumed items, chained prerequisites |
+
+Each room publishes a par action count so efficiency scores remain comparable
+as scenarios become more complex.
+
 ## Current scope
 
-Version 0.1 includes one room, The Vault, local stdio transport, in-memory runs,
-JSONL traces, and deterministic scoring. It does not yet include remote HTTP,
+Version 0.2 includes two built-in rooms, room discovery, chained interaction
+prerequisites, local stdio transport, in-memory runs, JSONL traces, and
+room-aware deterministic scoring. It does not yet include remote HTTP,
 authentication, crash recovery, a replay UI, community room loading, or a
 public model leaderboard.
 
@@ -133,6 +147,7 @@ public model leaderboard.
 
 Read [CONTRIBUTING.md](CONTRIBUTING.md) before opening a pull request. Report
 security issues according to [SECURITY.md](SECURITY.md).
+Release notes are in [CHANGELOG.md](CHANGELOG.md).
 
 ## License
 

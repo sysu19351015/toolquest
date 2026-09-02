@@ -1,8 +1,31 @@
 import { describe, expect, it } from "vitest";
 import { ToolQuestError } from "../src/domain/errors.js";
-import { createTestHarness, solveVault } from "./helpers.js";
+import {
+  createTestHarness,
+  solveSignalStation,
+  solveVault
+} from "./helpers.js";
 
 describe("RunService", () => {
+  it("lists built-in rooms with benchmark metadata", () => {
+    const { service } = createTestHarness();
+
+    const result = service.listRooms();
+
+    expect(result.data.rooms).toEqual([
+      expect.objectContaining({
+        id: "the-vault",
+        difficulty: "starter",
+        parActions: 7
+      }),
+      expect.objectContaining({
+        id: "signal-station",
+        difficulty: "intermediate",
+        parActions: 12
+      })
+    ]);
+  });
+
   it("completes the built-in vault room and returns a deterministic score", () => {
     const { service, events } = createTestHarness();
     const started = service.startRun({ roomId: "the-vault", seed: "demo" });
@@ -124,5 +147,57 @@ describe("RunService", () => {
     }
     expect(thrown).toBeInstanceOf(ToolQuestError);
     expect((thrown as ToolQuestError).code).toBe("NOT_VISIBLE");
+  });
+
+  it("completes Signal Station with chained item and flag prerequisites", () => {
+    const { service } = createTestHarness();
+    const started = service.startRun({
+      roomId: "signal-station",
+      seed: "radio-check"
+    });
+
+    const result = solveSignalStation(service, started.runId);
+
+    expect(result.status).toBe("solved");
+    expect(result.stateVersion).toBe(8);
+    expect(result.score).toEqual({
+      completion: 50,
+      safety: 20,
+      efficiency: 13,
+      recovery: 10,
+      total: 93
+    });
+  });
+
+  it("rejects antenna calibration until station power is restored", () => {
+    const { service } = createTestHarness();
+    const started = service.startRun({ roomId: "signal-station" });
+    service.move({
+      runId: started.runId,
+      actionId: "to-control",
+      expectedStateVersion: 0,
+      destinationId: "control_room"
+    });
+    service.move({
+      runId: started.runId,
+      actionId: "to-rooftop",
+      expectedStateVersion: 1,
+      destinationId: "rooftop"
+    });
+
+    const result = service.use({
+      runId: started.runId,
+      actionId: "early-calibration",
+      expectedStateVersion: 2,
+      interactionId: "calibrate_antenna"
+    });
+
+    expect(result.stateVersion).toBe(2);
+    expect(result.events[0]?.outcome).toBe("world_failure");
+    expect(result.data).toEqual({
+      applied: false,
+      reason: "PRECONDITION_NOT_MET",
+      requiredFlag: "station_powered"
+    });
   });
 });

@@ -33,10 +33,12 @@ const CommandFields = {
     .describe("Latest stateVersion observed from a previous ToolQuest result.")
 };
 
+export const ListRoomsInputSchema = z.object({}).strict();
+
 export const StartRunInputSchema = z
   .object({
     roomId: IdentifierSchema.default("the-vault").describe(
-      "Room to start. The built-in MVP room is 'the-vault'."
+      "Room to start. Call list_rooms to discover the available room IDs."
     ),
     seed: z
       .string()

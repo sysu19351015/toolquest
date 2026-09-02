@@ -16,6 +16,7 @@ import type {
   GameState,
   RoomDefinition,
   RunRecord,
+  ToolQuestCatalogSuccess,
   ToolQuestSuccess
 } from "../domain/types.js";
 import type {
@@ -78,8 +79,14 @@ export class RunService {
       });
   }
 
-  public listRooms() {
-    return this.dependencies.rooms.list();
+  public listRooms(): ToolQuestCatalogSuccess {
+    const rooms = this.dependencies.rooms.list();
+    return {
+      ok: true,
+      message: `${rooms.length} ToolQuest rooms are available.`,
+      data: { rooms },
+      events: []
+    };
   }
 
   public startRun(input: StartRunInput): ToolQuestSuccess {
@@ -221,7 +228,8 @@ export class RunService {
       record.state,
       record.stateVersion,
       event,
-      domainResult
+      domainResult,
+      room
     );
 
     this.dependencies.runs.save({
@@ -302,6 +310,7 @@ export class RunService {
       nextStateVersion,
       event,
       domainResult,
+      room,
       allEvents
     );
     const nextRecord: RunRecord = {
@@ -329,12 +338,13 @@ export class RunService {
     stateVersion: number,
     event: GameEvent,
     domainResult: DomainActionResult,
+    room: RoomDefinition,
     allEvents?: GameEvent[]
   ): ToolQuestSuccess {
     const score =
       state.status === "active"
         ? undefined
-        : calculateScore(state.status, allEvents ?? [event]);
+        : calculateScore(state.status, allEvents ?? [event], room.parActions);
     return {
       ok: true,
       runId: event.runId,

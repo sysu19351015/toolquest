@@ -32,7 +32,8 @@ describe("stdio server", () => {
     try {
       await client.connect(transport);
       const tools = await client.listTools();
-      expect(tools.tools).toHaveLength(6);
+      expect(tools.tools).toHaveLength(7);
+      expect(tools.tools.some((tool) => tool.name === "list_rooms")).toBe(true);
 
       const started = await client.callTool({
         name: "start_run",

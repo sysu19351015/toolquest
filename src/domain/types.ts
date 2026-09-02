@@ -2,6 +2,8 @@ export type RunStatus = "active" | "solved" | "failed";
 
 export type EventOutcome = "success" | "world_failure";
 
+export type RoomDifficulty = "starter" | "intermediate" | "advanced";
+
 export type GameToolName =
   | "start_run"
   | "look"
@@ -51,6 +53,7 @@ export type InteractionEffect =
       flag: string;
       value: boolean;
       requiredItemId?: string;
+      requiredFlag?: string;
       consumeItem?: boolean;
     };
 
@@ -68,6 +71,8 @@ export interface RoomDefinition {
   id: string;
   title: string;
   version: string;
+  difficulty: RoomDifficulty;
+  parActions: number;
   introduction: string;
   initialLocationId: string;
   requiredSubmitLocationId: string;
@@ -78,6 +83,15 @@ export interface RoomDefinition {
   items: Record<string, ItemDefinition>;
   objects: Record<string, ObjectDefinition>;
   interactions: Record<string, InteractionDefinition>;
+}
+
+export interface RoomSummary {
+  id: string;
+  title: string;
+  version: string;
+  difficulty: RoomDifficulty;
+  parActions: number;
+  introduction: string;
 }
 
 export interface GameState {
@@ -125,6 +139,17 @@ export interface ToolQuestSuccess {
   events: GameEvent[];
   score?: ScoreBreakdown;
 }
+
+export interface ToolQuestCatalogSuccess {
+  ok: true;
+  message: string;
+  data: {
+    rooms: RoomSummary[];
+  };
+  events: [];
+}
+
+export type ToolQuestResult = ToolQuestSuccess | ToolQuestCatalogSuccess;
 
 export interface CachedAction {
   fingerprint: string;

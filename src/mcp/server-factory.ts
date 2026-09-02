@@ -2,9 +2,11 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 import type { RunService } from "../application/run-service.js";
 import { createDefaultRunService } from "../composition.js";
+import type { ToolQuestResult } from "../domain/types.js";
 import { presentError, presentSuccess } from "./presenter.js";
 import {
   InspectInputSchema,
+  ListRoomsInputSchema,
   LookInputSchema,
   MoveInputSchema,
   StartRunInputSchema,
@@ -13,7 +15,7 @@ import {
   UseInputSchema
 } from "./schemas.js";
 
-function handle(operation: () => ReturnType<RunService["look"]>): CallToolResult {
+function handle(operation: () => ToolQuestResult): CallToolResult {
   try {
     return presentSuccess(operation());
   } catch (error) {
@@ -25,11 +27,29 @@ export function createToolQuestServer(
   service: RunService = createDefaultRunService()
 ): McpServer {
   const server = new McpServer(
-    { name: "toolquest", version: "0.1.0" },
+    { name: "toolquest", version: "0.2.0" },
     {
       instructions:
-        "ToolQuest is a deterministic escape-room testbed. Start with start_run, then call look. Use IDs exactly as returned. Mutating tools require a unique actionId and the latest stateVersion. Calls affect only the virtual room."
+        "ToolQuest is a deterministic escape-room testbed. Call list_rooms to discover challenges, then start_run and look. Use IDs exactly as returned. Mutating tools require a unique actionId and the latest stateVersion. Calls affect only the virtual room."
     }
+  );
+
+  server.registerTool(
+    "list_rooms",
+    {
+      title: "List ToolQuest Rooms",
+      description:
+        "Discover all built-in rooms with their IDs, versions, difficulty, introductions, and par action counts. This does not create or change a run.",
+      inputSchema: ListRoomsInputSchema,
+      outputSchema: ToolEnvelopeSchema,
+      annotations: {
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: false
+      }
+    },
+    () => handle(() => service.listRooms())
   );
 
   server.registerTool(

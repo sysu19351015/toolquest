@@ -31,10 +31,11 @@ describe("ToolQuest MCP contract", () => {
     await server.close();
   });
 
-  it("exposes exactly the six stable tools with schemas and annotations", async () => {
+  it("exposes exactly the seven stable tools with schemas and annotations", async () => {
     const listed = await client.listTools();
 
     expect(listed.tools.map((tool) => tool.name)).toEqual([
+      "list_rooms",
       "start_run",
       "look",
       "inspect",
@@ -56,6 +57,26 @@ describe("ToolQuest MCP contract", () => {
       listed.tools.find((tool) => tool.name === "move")?.annotations
         ?.readOnlyHint
     ).toBe(false);
+  });
+
+  it("discovers rooms without creating a run", async () => {
+    const listed = await client.callTool({
+      name: "list_rooms",
+      arguments: {}
+    });
+    const result = envelope(listed.structuredContent);
+    const data = envelope(result["data"]);
+
+    expect(listed.isError).not.toBe(true);
+    expect(result["ok"]).toBe(true);
+    expect(result["events"]).toEqual([]);
+    expect(data["rooms"]).toEqual([
+      expect.objectContaining({ id: "the-vault", difficulty: "starter" }),
+      expect.objectContaining({
+        id: "signal-station",
+        difficulty: "intermediate"
+      })
+    ]);
   });
 
   it("returns structured content that can drive the next tool call", async () => {

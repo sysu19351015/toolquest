@@ -147,11 +147,16 @@ export function inspectObject(
       interaction.effect.type === "set_flag"
         ? interaction.effect.requiredItemId
         : undefined;
+    const requiredFlag =
+      interaction.effect.type === "set_flag"
+        ? interaction.effect.requiredFlag
+        : undefined;
     return {
       id: interaction.id,
       title: interaction.title,
       description: interaction.description,
-      ...(requiredItemId === undefined ? {} : { requiredItemId })
+      ...(requiredItemId === undefined ? {} : { requiredItemId }),
+      ...(requiredFlag === undefined ? {} : { requiredFlag })
     };
   });
 
@@ -281,6 +286,23 @@ export function performUse(
       }
     }
 
+    if (
+      effect.requiredFlag !== undefined &&
+      state.flags[effect.requiredFlag] !== true
+    ) {
+      return {
+        state,
+        changed: false,
+        outcome: "world_failure",
+        message: "A required room condition has not been completed yet.",
+        data: {
+          applied: false,
+          reason: "PRECONDITION_NOT_MET",
+          requiredFlag: effect.requiredFlag
+        }
+      };
+    }
+
     nextState.flags[effect.flag] = effect.value;
     if (effect.consumeItem === true && effect.requiredItemId !== undefined) {
       nextState.inventory = nextState.inventory.filter(
@@ -312,7 +334,7 @@ export function performSubmit(
       state,
       changed: false,
       outcome: "world_failure",
-      message: "You must reach the vault before submitting the code.",
+      message: "You must reach the final challenge location before submitting.",
       data: {
         correct: false,
         submitted: false,
@@ -329,7 +351,7 @@ export function performSubmit(
       state,
       changed: false,
       outcome: "world_failure",
-      message: "The vault mechanism is still locked.",
+      message: "The final challenge mechanism is not ready yet.",
       data: {
         correct: false,
         submitted: false,
@@ -345,7 +367,7 @@ export function performSubmit(
       state: nextState,
       changed: true,
       outcome: "success",
-      message: "The dial clicks. The vault opens. You escaped!",
+      message: "The answer is accepted. The exit opens. You escaped!",
       data: { correct: true, submitted: true }
     };
   }
@@ -362,7 +384,7 @@ export function performSubmit(
     outcome: "world_failure",
     message:
       attemptsRemaining === 0
-        ? "The final attempt fails and the vault locks permanently."
+        ? "The final attempt fails and the room locks permanently."
         : `The code is incorrect. ${attemptsRemaining} attempt(s) remain.`,
     data: {
       correct: false,
@@ -403,7 +425,8 @@ export function hashGameState(state: GameState): string {
 
 export function calculateScore(
   status: GameState["status"],
-  events: GameEvent[]
+  events: GameEvent[],
+  parActions = 7
 ): ScoreBreakdown {
   const actions = events.filter((event) => event.tool !== "start_run");
   const failures = actions.filter(
@@ -412,7 +435,9 @@ export function calculateScore(
   const completion = status === "solved" ? 50 : 0;
   const safety = 20;
   const efficiency =
-    status === "solved" ? Math.max(0, 15 - Math.max(0, actions.length - 7)) : 0;
+    status === "solved"
+      ? Math.max(0, 15 - Math.max(0, actions.length - parActions))
+      : 0;
   const recovery =
     status === "solved" ? (failures > 0 ? 15 : 10) : 0;
 

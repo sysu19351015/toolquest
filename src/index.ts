@@ -16,7 +16,11 @@ export type {
   GameEvent,
   GameState,
   RoomDefinition,
+  RoomDifficulty,
+  RoomSummary,
   RunRecord,
   ScoreBreakdown,
+  ToolQuestCatalogSuccess,
+  ToolQuestResult,
   ToolQuestSuccess
 } from "./domain/types.js";

@@ -1,9 +1,9 @@
 import { randomUUID } from "node:crypto";
 import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 import { isToolQuestError } from "../domain/errors.js";
-import type { ToolQuestSuccess } from "../domain/types.js";
+import type { ToolQuestResult } from "../domain/types.js";
 
-export function presentSuccess(result: ToolQuestSuccess): CallToolResult {
+export function presentSuccess(result: ToolQuestResult): CallToolResult {
   const structuredContent = { ...result };
   return {
     content: [{ type: "text", text: result.message }],

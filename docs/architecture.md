@@ -24,6 +24,8 @@ The domain and application layers must not import the MCP SDK.
 - The same actionId with different arguments is rejected.
 - Identical seed, room version, and action sequence produce the same state hash.
 - Hidden room data reaches MCP output only through a public projection.
+- Efficiency scoring uses each room's published par action count.
+- Interaction prerequisites fail as world outcomes and never mutate state.
 
 ## Error semantics
 
@@ -48,6 +50,11 @@ deferred.
 
 ## Adding a room
 
-A room definition contains locations, exits, visible objects, interactions,
-items, a final answer, and terminal rules. Room definitions are trusted source
-code in version 0.1. Loading external YAML or scripts is not supported yet.
+A room definition contains metadata, locations, exits, visible objects,
+interactions, items, a final answer, and terminal rules. A set-flag interaction
+may require an inventory item, a previously established flag, or both.
+
+Add a trusted definition under src/domain/rooms and register it in
+BuiltInRoomCatalog. Give the room a difficulty and parActions value, then cover
+its successful path and prerequisite failures in tests. Loading external YAML
+or scripts is not supported yet.

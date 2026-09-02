@@ -38,16 +38,18 @@ ToolQuest 为本地 MCP Server提供解谜游戏。Agent 可以通过工具探�
 
 ## Agent 操作顺序
 
-1. 调用 start_run，roomId 使用 the-vault。
-2. 使用返回的 runId 调用 look。
-3. inspect 可见对象，获得线索和 interactionId。
-4. 调用 move 或 use 时提供唯一 actionId 和最新 stateVersion。
-5. 打开保险库并推导出密码后调用 submit。
+1. 调用 list_rooms 发现并选择挑战。
+2. 使用选定的 roomId 调用 start_run。
+3. 使用返回的 runId 调用 look。
+4. inspect 可见对象，获得线索和 interactionId。
+5. 调用 move 或 use 时提供唯一 actionId 和最新 stateVersion。
+6. 最终机关准备就绪并推导出答案后调用 submit。
 
-## 六个 MCP 工具
+## 七个 MCP 工具
 
 | 工具 | 作用 | 是否改变房间状态 |
 | --- | --- | --- |
+| list_rooms | 发现房间、难度和标准动作数 | 否 |
 | start_run | 创建隔离的确定性运行 | 创建运行 |
 | look | 查看位置、对象、出口和背包 | 否 |
 | inspect | 检查对象、读取线索和交互 | 否 |
@@ -56,8 +58,8 @@ ToolQuest 为本地 MCP Server提供解谜游戏。Agent 可以通过工具探�
 | submit | 提交最终答案并计算成绩 | 可能 |
 
 完全相同的 actionId 重试会返回首次结果；同一 actionId 携带不同参数会被拒绝。
-错误目的地、过期版本等调用错误会返回稳定错误码和 recoveryHint；钥匙不匹配、
-答案错误等属于游戏世界结果，会正常写入事件轨迹。
+错误目的地、过期版本等调用错误会返回稳定错误码和 recoveryHint；物品不匹配、
+前置条件未满足、答案错误等属于游戏世界结果，会正常写入事件轨迹。
 
 ## 本地轨迹
 
@@ -79,10 +81,22 @@ ToolQuest 为本地 MCP Server提供解谜游戏。Agent 可以通过工具探�
 测试包含领域状态机、幂等与版本冲突、run 隔离、MCP 工具契约，以及真实 stdio
 子进程通信。
 
-## v0.1 范围
+## 内置房间
 
-当前版本包含一个内置房间 The Vault、本地 stdio、内存运行、JSONL 轨迹和确定性
-评分。暂不包含远程 HTTP、鉴权、崩溃恢复、回放 UI、社区房间加载或公开排行榜。
+| 房间 ID | 难度 | 主要测试能力 |
+| --- | --- | --- |
+| the-vault | 入门 | 探索、组合线索、使用物品 |
+| signal-station | 中级 | 多地点规划、消耗物品、链式前置条件 |
+
+每个房间都会公布标准动作数，使不同复杂度场景的效率得分仍可比较。
+
+## v0.2 范围
+
+当前版本包含两个内置房间、房间发现、链式交互前置条件、本地 stdio、内存运行、
+JSONL 轨迹和按房间校准的确定性评分。暂不包含远程 HTTP、鉴权、崩溃恢复、
+回放 UI、社区房间加载或公开排行榜。
+
+版本变化见 [CHANGELOG.md](CHANGELOG.md)。
 
 ## License
 

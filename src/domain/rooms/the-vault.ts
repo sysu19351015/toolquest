@@ -4,6 +4,8 @@ export const THE_VAULT_ROOM: RoomDefinition = {
   id: "the-vault",
   title: "The Vault",
   version: "1.0.0",
+  difficulty: "starter",
+  parActions: 7,
   introduction:
     "You are locked inside an old observatory. Find the three-digit vault code and open the vault door.",
   initialLocationId: "foyer",

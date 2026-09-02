@@ -1,12 +1,13 @@
 import type {
   GameEvent,
   RoomDefinition,
+  RoomSummary,
   RunRecord
 } from "../domain/types.js";
 
 export interface RoomCatalog {
   find(roomId: string): RoomDefinition | undefined;
-  list(): Array<Pick<RoomDefinition, "id" | "title" | "version">>;
+  list(): RoomSummary[];
 }
 
 export interface RunRepository {

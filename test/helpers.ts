@@ -94,3 +94,61 @@ export function solveVault(service: RunService, runId: string) {
     answer: "731"
   });
 }
+
+export function solveSignalStation(service: RunService, runId: string) {
+  service.look(runId);
+  service.inspect({ runId, targetId: "distress_notice" });
+  service.move({
+    runId,
+    actionId: "move-workshop",
+    expectedStateVersion: 0,
+    destinationId: "workshop"
+  });
+  service.inspect({ runId, targetId: "frequency_chart" });
+  service.inspect({ runId, targetId: "ceramic_fuse" });
+  service.use({
+    runId,
+    actionId: "take-fuse",
+    expectedStateVersion: 1,
+    interactionId: "take_ceramic_fuse"
+  });
+  service.move({
+    runId,
+    actionId: "return-entry",
+    expectedStateVersion: 2,
+    destinationId: "entry_hall"
+  });
+  service.move({
+    runId,
+    actionId: "move-control",
+    expectedStateVersion: 3,
+    destinationId: "control_room"
+  });
+  service.inspect({ runId, targetId: "breaker_panel" });
+  service.use({
+    runId,
+    actionId: "restore-power",
+    expectedStateVersion: 4,
+    interactionId: "restore_station_power",
+    itemId: "ceramic_fuse"
+  });
+  service.move({
+    runId,
+    actionId: "move-rooftop",
+    expectedStateVersion: 5,
+    destinationId: "rooftop"
+  });
+  service.inspect({ runId, targetId: "antenna_console" });
+  service.use({
+    runId,
+    actionId: "calibrate",
+    expectedStateVersion: 6,
+    interactionId: "calibrate_antenna"
+  });
+  return service.submit({
+    runId,
+    actionId: "transmit-code",
+    expectedStateVersion: 7,
+    answer: "821"
+  });
+}
