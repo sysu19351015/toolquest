@@ -2,7 +2,7 @@
 
 给工具调用 Agent 玩的数字密室。
 
-ToolQuest 将确定性的谜题房间暴露为本地 MCP Server。Agent 可以通过工具探索、
+ToolQuest 为本地 MCP Server提供解谜游戏。Agent 可以通过工具探索、
 操作机关、提交答案；开发者则可以获得可复现的事件轨迹和确定性评分。
 
 [English](README.md)
