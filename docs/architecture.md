@@ -41,12 +41,21 @@ paths are written only to stderr.
 
 ## Event storage
 
-The in-memory RunRecord is the authoritative state for version 0.1. The JSONL
-sink is a best-effort public trace used for replay and reports. A trace write
-failure is diagnosed on stderr and does not roll back a committed game action.
+The default FileRunRepository stores one versioned JSON envelope per run under
+.toolquest/state. Saves write a uniquely named temporary file and atomically
+rename it over the destination. This makes a completed save recoverable after
+a process restart. One state directory supports one writer process; distributed
+locking and multi-process transactions are deliberately deferred.
 
-Crash recovery and a transactional persistent event store are deliberately
-deferred.
+The JSONL sink remains a best-effort public trace. A trace write failure is
+diagnosed on stderr and does not roll back authoritative state. Public events
+redact submitted answers, while persisted action-cache keys use SHA-256
+digests rather than plaintext arguments.
+
+Replay starts from the first event's room, seed, and timestamp, then invokes the
+same deterministic domain operations. It validates event sequence, run and room
+identity, state versions, state hashes, outcomes, messages, and final state.
+Reports render only public events and replay results.
 
 ## Adding a room
 

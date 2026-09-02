@@ -10,8 +10,14 @@ export type {
   RunRepository
 } from "./application/ports.js";
 export { createDefaultRunService } from "./composition.js";
+export { FileRunRepository } from "./infrastructure/file-run-repository.js";
 export { createToolQuestServer } from "./mcp/server-factory.js";
 export { ToolQuestError } from "./domain/errors.js";
+export {
+  replayRunRecord,
+  type ReplayMismatch,
+  type ReplayReport
+} from "./domain/replay.js";
 export type {
   GameEvent,
   GameState,

@@ -2,6 +2,16 @@
 
 All notable changes to ToolQuest are documented here.
 
+## 0.3.0
+
+- Persist authoritative runs as versioned JSON with atomic file replacement.
+- Recover active and terminal runs after a server restart.
+- Add get_run for non-mutating public snapshots.
+- Add replay_run with event-by-event state, outcome, and hash verification.
+- Add export_report for redacted Markdown benchmark reports.
+- Store idempotency arguments as SHA-256 digests instead of plaintext.
+- Expand restart, corruption, tamper detection, privacy, MCP, and stdio tests.
+
 ## 0.2.0
 
 - Add the read-only list_rooms MCP tool for challenge discovery.
