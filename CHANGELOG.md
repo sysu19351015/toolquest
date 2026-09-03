@@ -2,6 +2,14 @@
 
 All notable changes to ToolQuest are documented here.
 
+## 0.3.1
+
+- Add list_runs to rediscover persisted runs after client or server restarts.
+- Return newest-first public run summaries with optional status and limit filters.
+- Validate persisted states, event sequences, and action cache structure before use.
+- Remove temporary state files after both successful and failed atomic saves.
+- Isolate stdio tests from the default persistent state directory.
+
 ## 0.3.0
 
 - Persist authoritative runs as versioned JSON with atomic file replacement.
