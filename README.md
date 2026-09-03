@@ -29,6 +29,13 @@ Requirements: Node.js 20 or newer.
     npm run check
     npm start
 
+For the visual interface, run:
+
+    npm run web
+
+Then open `http://127.0.0.1:4310`. The interface is designed for non-technical
+players and keeps all run data on the local machine.
+
 The server communicates over stdio. A common MCP client configuration looks
 like this; replace the path with an absolute path on your machine:
 
@@ -54,6 +61,18 @@ like this; replace the path with an absolute path on your machine:
 After a client or server restart, call list_runs to rediscover recent run IDs,
 then call get_run and continue from the returned stateVersion and public
 snapshot.
+
+## Visual interface
+
+Version 0.4 adds a local-first browser experience powered by the same RunService
+as the MCP server. Players can choose a room, inspect visible objects, move,
+use inventory items, submit answers, resume earlier runs, inspect the public
+event timeline, verify deterministic replay, and download a redacted report.
+
+The browser never receives hidden room definitions or plaintext answers. The
+Web server listens only on `127.0.0.1`, applies restrictive browser security
+headers, limits request bodies, and requires a per-process page token for every
+state-changing request.
 
 ## MCP tools
 
@@ -142,9 +161,10 @@ The domain and application layers do not import the MCP SDK. See
     npm run build
     npm run check
 
-The test suite includes domain and application tests, restart discovery and
-recovery, malformed-state rejection, tamper-detecting replay, report redaction,
-an in-memory MCP contract test, and an isolated real stdio subprocess test.
+The test suite includes domain and application tests, Web API security and flow,
+restart discovery and recovery, malformed-state rejection, tamper-detecting
+replay, report redaction, an in-memory MCP contract test, and isolated real
+stdio subprocess tests.
 
 ## Built-in rooms
 
@@ -158,12 +178,12 @@ as scenarios become more complex.
 
 ## Current scope
 
-Version 0.3.1 includes two built-in rooms, eleven MCP tools, atomic local run
-persistence, restart discovery and recovery, deterministic event replay,
-redacted Markdown reports, JSONL traces, and room-aware scoring. The file
-repository supports one server process per state directory. Remote HTTP,
-authentication, a replay UI, community room loading, multi-process
-transactions, and a public model leaderboard remain out of scope.
+Version 0.4 includes a responsive local Web interface, two built-in rooms,
+eleven MCP tools, atomic local run persistence, restart discovery and recovery,
+deterministic event replay, redacted Markdown reports, JSONL traces, and
+room-aware scoring. The file repository supports one server process per state
+directory. Remote hosting, authentication, community room loading,
+multi-process transactions, and a public model leaderboard remain out of scope.
 
 ## Contributing and security
 
