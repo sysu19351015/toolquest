@@ -26,6 +26,34 @@ describe("RunService", () => {
     ]);
   });
 
+  it("lists newest runs with status filters, limits, and public summaries", () => {
+    const { service } = createTestHarness();
+    const active = service.startRun({ roomId: "the-vault", seed: "active" });
+    const solved = service.startRun({ roomId: "the-vault", seed: "solved" });
+    solveVault(service, solved.runId);
+
+    const allRuns = service.listRuns({ limit: 20 });
+    const activeRuns = service.listRuns({ status: "active", limit: 20 });
+    const limitedRuns = service.listRuns({ limit: 1 });
+
+    expect(allRuns.data.runs.map((run) => run.runId)).toEqual([
+      solved.runId,
+      active.runId
+    ]);
+    expect(activeRuns.data.runs).toEqual([
+      expect.objectContaining({ runId: active.runId, status: "active" })
+    ]);
+    expect(limitedRuns.data.runs).toEqual([
+      expect.objectContaining({
+        runId: solved.runId,
+        status: "solved"
+      })
+    ]);
+    expect(limitedRuns.data.runs[0]?.score?.total).toBe(92);
+    expect(JSON.stringify(allRuns)).not.toContain("inventory");
+    expect(JSON.stringify(allRuns)).not.toContain("flags");
+  });
+
   it("completes the built-in vault room and returns a deterministic score", () => {
     const { service, events } = createTestHarness();
     const started = service.startRun({ roomId: "the-vault", seed: "demo" });

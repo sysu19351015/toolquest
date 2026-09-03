@@ -31,11 +31,12 @@ describe("ToolQuest MCP contract", () => {
     await server.close();
   });
 
-  it("exposes exactly the ten stable tools with schemas and annotations", async () => {
+  it("exposes exactly the eleven stable tools with schemas and annotations", async () => {
     const listed = await client.listTools();
 
     expect(listed.tools.map((tool) => tool.name)).toEqual([
       "list_rooms",
+      "list_runs",
       "start_run",
       "get_run",
       "replay_run",
@@ -60,6 +61,29 @@ describe("ToolQuest MCP contract", () => {
       listed.tools.find((tool) => tool.name === "move")?.annotations
         ?.readOnlyHint
     ).toBe(false);
+  });
+
+  it("discovers a run before resuming it", async () => {
+    const started = await client.callTool({
+      name: "start_run",
+      arguments: { roomId: "the-vault", seed: "discovery-test" }
+    });
+    const startedEnvelope = envelope(started.structuredContent);
+    const listed = await client.callTool({
+      name: "list_runs",
+      arguments: { status: "active", limit: 1 }
+    });
+    const listedEnvelope = envelope(listed.structuredContent);
+    const data = envelope(listedEnvelope["data"]);
+
+    expect(listed.isError).not.toBe(true);
+    expect(data["runs"]).toEqual([
+      expect.objectContaining({
+        runId: startedEnvelope["runId"],
+        status: "active"
+      })
+    ]);
+    expect(listedEnvelope["events"]).toEqual([]);
   });
 
   it("inspects, replays, and reports a run without mutating it", async () => {

@@ -51,8 +51,17 @@ describe("FileRunRepository", () => {
       persistTraces: false
     });
     const snapshot = recoveredService.getRun(started.runId);
+    const discovered = recoveredService.listRuns({ limit: 20 });
     const looked = recoveredService.look(started.runId);
 
+    expect(discovered.data.runs).toEqual([
+      expect.objectContaining({
+        runId: started.runId,
+        status: "active",
+        stateVersion: 1,
+        eventSeq: 2
+      })
+    ]);
     expect(snapshot.stateVersion).toBe(1);
     expect(snapshot.eventSeq).toBe(2);
     expect(looked.stateVersion).toBe(1);
@@ -78,6 +87,33 @@ describe("FileRunRepository", () => {
     expect(() => repository.find(runId)).toThrow(
       "Malformed ToolQuest run record."
     );
+  });
+
+  it("rejects structurally inconsistent event sequences", () => {
+    const stateDirectory = temporaryDirectory();
+    const service = createDefaultRunService({
+      persistRuns: true,
+      stateDirectory,
+      persistTraces: false
+    });
+    const started = service.startRun({ roomId: "the-vault" });
+    const path = join(stateDirectory, `${started.runId}.json`);
+    const envelope = JSON.parse(readFileSync(path, "utf8")) as {
+      record: { events: Array<{ eventSeq: number }> };
+    };
+    envelope.record.events[0]!.eventSeq = 9;
+    writeFileSync(path, JSON.stringify(envelope), "utf8");
+
+    expect(() => new FileRunRepository(stateDirectory).list()).toThrow(
+      "Malformed ToolQuest run record."
+    );
+  });
+
+  it("returns an empty list before the state directory exists", () => {
+    const parent = temporaryDirectory();
+    const repository = new FileRunRepository(join(parent, "not-created"));
+
+    expect(repository.list()).toEqual([]);
   });
 
   it("persists action digests without storing the submitted answer", () => {
