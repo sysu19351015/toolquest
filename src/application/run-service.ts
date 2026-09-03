@@ -174,6 +174,21 @@ export class RunService {
     };
   }
 
+  public getRunTimeline(runId: string): ToolQuestSuccess {
+    const record = this.requireRun(runId);
+    return {
+      ok: true,
+      runId,
+      eventSeq: record.eventSeq,
+      stateVersion: record.stateVersion,
+      stateHash: hashGameState(record.state),
+      status: record.state.status,
+      message: `${record.events.length} public run events are available.`,
+      data: { timeline: structuredClone(record.events) },
+      events: []
+    };
+  }
+
   public replayRun(runId: string): ToolQuestSuccess {
     const record = this.requireRun(runId);
     const room = this.requireRoom(record.state.roomId);

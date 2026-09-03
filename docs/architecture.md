@@ -13,6 +13,11 @@
 Infrastructure implements application ports and may depend on domain types.
 The domain and application layers must not import the MCP SDK.
 
+The local Web adapter is a second delivery mechanism beside MCP. It calls the
+same RunService and never duplicates room rules. Static browser assets contain
+only presentation copy; authoritative state, hidden definitions, and answers
+remain on the server.
+
 ## Main invariants
 
 - A run is addressed only by its opaque runId.
@@ -60,6 +65,14 @@ Replay starts from the first event's room, seed, and timestamp, then invokes the
 same deterministic domain operations. It validates event sequence, run and room
 identity, state versions, state hashes, outcomes, messages, and final state.
 Reports render only public events and replay results.
+
+## Local Web boundary
+
+The visual server binds to the IPv4 loopback address and exposes narrowly
+scoped JSON endpoints. A random per-process token is returned during same-origin
+bootstrap and required in a custom header for every mutation. Request bodies
+are capped and validated by the same Zod schemas as MCP. Responses disable
+caching, framing, content sniffing, cross-origin connections, and inline code.
 
 ## Adding a room
 

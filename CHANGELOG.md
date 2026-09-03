@@ -2,6 +2,20 @@
 
 All notable changes to ToolQuest are documented here.
 
+## 0.4.0
+
+- Add a local-first visual Web interface for non-technical players.
+- Support room selection, run recovery, exploration, movement, interactions,
+  answer submission, terminal scoring, and responsive layouts.
+- Add a public event timeline, deterministic replay verification, and Markdown
+  report downloads to the visual experience.
+- Provide built-in Chinese interface copy for both rooms while preserving the
+  existing deterministic room engine and MCP tools.
+- Add a loopback-only Web server with per-process write tokens, strict request
+  schemas, body limits, and restrictive browser security headers.
+- Add end-to-end tests for Web delivery, write protection, gameplay recovery,
+  replay, and report privacy.
+
 ## 0.3.1
 
 - Add list_runs to rediscover persisted runs after client or server restarts.

@@ -2,7 +2,7 @@
 
 ## Supported version
 
-Security fixes currently target the latest 0.3.x release.
+Security fixes currently target the latest 0.4.x release.
 
 ## Reporting
 
@@ -25,3 +25,9 @@ action digests. Submitted answers are not stored in plaintext. Treat the state
 directory as private server data and do not publish it.
 
 Tool annotations are descriptive hints, not an authorization boundary.
+
+ToolQuest 0.4 also includes an optional local Web interface. It binds only to
+`127.0.0.1`; changing that boundary is unsupported. State-changing Web requests
+require the random token delivered to the loaded page, and responses apply a
+restrictive Content Security Policy. The local interface is not an authenticated
+multi-user or remotely hosted service.
