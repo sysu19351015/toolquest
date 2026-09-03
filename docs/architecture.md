@@ -44,8 +44,12 @@ paths are written only to stderr.
 The default FileRunRepository stores one versioned JSON envelope per run under
 .toolquest/state. Saves write a uniquely named temporary file and atomically
 rename it over the destination. This makes a completed save recoverable after
-a process restart. One state directory supports one writer process; distributed
-locking and multi-process transactions are deliberately deferred.
+a process restart. Temporary files are removed on both success and failure.
+Reads validate state fields, contiguous event sequences, and cached-action
+structure before returning a record. list_runs enumerates only safe run file
+names and projects records into public summaries. One state directory supports
+one writer process; distributed locking and multi-process transactions are
+deliberately deferred.
 
 The JSONL sink remains a best-effort public trace. A trace write failure is
 diagnosed on stderr and does not roll back authoritative state. Public events

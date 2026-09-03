@@ -51,14 +51,16 @@ like this; replace the path with an absolute path on your machine:
 6. Call submit when the final mechanism is ready and you know the answer.
 7. Call replay_run to verify the trace and export_report for a Markdown result.
 
-After a client or server restart, call get_run with the original runId and
-continue from the returned stateVersion and public snapshot.
+After a client or server restart, call list_runs to rediscover recent run IDs,
+then call get_run and continue from the returned stateVersion and public
+snapshot.
 
 ## MCP tools
 
 | Tool | Purpose | Changes world state |
 | --- | --- | --- |
 | list_rooms | Discover challenges, difficulty, and par actions | No |
+| list_runs | Discover recent persisted runs; filter by status and limit | No |
 | start_run | Create an isolated deterministic run | Creates a run |
 | get_run | Resume a persisted run with a public snapshot | No |
 | replay_run | Rebuild and verify a run from its event log | No |
@@ -113,7 +115,9 @@ TOOLQUEST_DISABLE_TRACES=1 to disable public traces.
 
 State files are private server data. Action arguments are stored only as
 SHA-256 idempotency digests, and the submitted answer is never written in
-plaintext. Public JSONL events contain only answer length and outcome.
+plaintext. Public JSONL events contain only answer length and outcome. Run
+discovery returns only public summaries. Structurally malformed state files
+fail closed instead of returning partial records.
 
 ## Architecture
 
@@ -138,9 +142,9 @@ The domain and application layers do not import the MCP SDK. See
     npm run build
     npm run check
 
-The test suite includes domain and application tests, restart recovery,
-tamper-detecting replay, report redaction, an in-memory MCP contract test, and
-a real stdio subprocess test.
+The test suite includes domain and application tests, restart discovery and
+recovery, malformed-state rejection, tamper-detecting replay, report redaction,
+an in-memory MCP contract test, and an isolated real stdio subprocess test.
 
 ## Built-in rooms
 
@@ -154,12 +158,12 @@ as scenarios become more complex.
 
 ## Current scope
 
-Version 0.3 includes two built-in rooms, ten MCP tools, atomic local run
-persistence, restart recovery, deterministic event replay, redacted Markdown
-reports, JSONL traces, and room-aware scoring. The file repository supports one
-server process per state directory. Remote HTTP, authentication, a replay UI,
-community room loading, multi-process transactions, and a public model
-leaderboard remain out of scope.
+Version 0.3.1 includes two built-in rooms, eleven MCP tools, atomic local run
+persistence, restart discovery and recovery, deterministic event replay,
+redacted Markdown reports, JSONL traces, and room-aware scoring. The file
+repository supports one server process per state directory. Remote HTTP,
+authentication, a replay UI, community room loading, multi-process
+transactions, and a public model leaderboard remain out of scope.
 
 ## Contributing and security
 

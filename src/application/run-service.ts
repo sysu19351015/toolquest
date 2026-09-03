@@ -20,6 +20,7 @@ import type {
   RoomDefinition,
   RunRecord,
   ToolQuestCatalogSuccess,
+  ToolQuestRunListSuccess,
   ToolQuestSuccess
 } from "../domain/types.js";
 import type {
@@ -33,6 +34,11 @@ import type {
 export interface StartRunInput {
   roomId: string;
   seed?: string;
+}
+
+export interface ListRunsInput {
+  status?: GameState["status"];
+  limit: number;
 }
 
 export interface InspectInput {
@@ -88,6 +94,44 @@ export class RunService {
       ok: true,
       message: `${rooms.length} ToolQuest rooms are available.`,
       data: { rooms },
+      events: []
+    };
+  }
+
+  public listRuns(input: ListRunsInput): ToolQuestRunListSuccess {
+    const runs = this.dependencies.runs
+      .list()
+      .filter(
+        (record) => input.status === undefined || record.state.status === input.status
+      )
+      .sort(
+        (left, right) =>
+          right.state.startedAt.localeCompare(left.state.startedAt) ||
+          right.runId.localeCompare(left.runId)
+      )
+      .slice(0, input.limit)
+      .map((record) => {
+        const room = this.requireRoom(record.state.roomId);
+        const score =
+          record.state.status === "active"
+            ? undefined
+            : calculateScore(record.state.status, record.events, room.parActions);
+        return {
+          runId: record.runId,
+          room: { id: room.id, title: room.title, version: room.version },
+          status: record.state.status,
+          stateVersion: record.stateVersion,
+          eventSeq: record.eventSeq,
+          stateHash: hashGameState(record.state),
+          startedAt: record.state.startedAt,
+          ...(score === undefined ? {} : { score })
+        };
+      });
+
+    return {
+      ok: true,
+      message: `${runs.length} ToolQuest run${runs.length === 1 ? "" : "s"} found.`,
+      data: { runs },
       events: []
     };
   }

@@ -12,6 +12,7 @@ export interface RoomCatalog {
 
 export interface RunRepository {
   find(runId: string): RunRecord | undefined;
+  list(): RunRecord[];
   save(record: RunRecord): void;
 }
 

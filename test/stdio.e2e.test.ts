@@ -23,7 +23,8 @@ describe("stdio server", () => {
       cwd: projectRoot,
       env: {
         ...getDefaultEnvironment(),
-        TOOLQUEST_DISABLE_TRACES: "1"
+        TOOLQUEST_DISABLE_TRACES: "1",
+        TOOLQUEST_DISABLE_STATE: "1"
       },
       stderr: "pipe"
     });
@@ -32,8 +33,9 @@ describe("stdio server", () => {
     try {
       await client.connect(transport);
       const tools = await client.listTools();
-      expect(tools.tools).toHaveLength(10);
+      expect(tools.tools).toHaveLength(11);
       expect(tools.tools.some((tool) => tool.name === "list_rooms")).toBe(true);
+      expect(tools.tools.some((tool) => tool.name === "list_runs")).toBe(true);
       expect(tools.tools.some((tool) => tool.name === "get_run")).toBe(true);
       expect(tools.tools.some((tool) => tool.name === "replay_run")).toBe(true);
       expect(tools.tools.some((tool) => tool.name === "export_report")).toBe(

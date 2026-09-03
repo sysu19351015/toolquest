@@ -35,6 +35,22 @@ const CommandFields = {
 
 export const ListRoomsInputSchema = z.object({}).strict();
 
+export const ListRunsInputSchema = z
+  .object({
+    status: z
+      .enum(["active", "solved", "failed"])
+      .optional()
+      .describe("Optional run status filter."),
+    limit: z
+      .number()
+      .int()
+      .min(1)
+      .max(100)
+      .default(20)
+      .describe("Maximum number of newest runs to return (1-100).")
+  })
+  .strict();
+
 export const StartRunInputSchema = z
   .object({
     roomId: IdentifierSchema.default("the-vault").describe(

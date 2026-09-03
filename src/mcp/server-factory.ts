@@ -7,6 +7,7 @@ import { presentError, presentSuccess } from "./presenter.js";
 import {
   InspectInputSchema,
   ListRoomsInputSchema,
+  ListRunsInputSchema,
   LookInputSchema,
   MoveInputSchema,
   RunQueryInputSchema,
@@ -28,10 +29,10 @@ export function createToolQuestServer(
   service: RunService = createDefaultRunService()
 ): McpServer {
   const server = new McpServer(
-    { name: "toolquest", version: "0.3.0" },
+    { name: "toolquest", version: "0.3.1" },
     {
       instructions:
-        "ToolQuest is a deterministic escape-room testbed with persistent runs. Call list_rooms to discover challenges, then start_run and look. Use get_run to resume after a client or server restart. Mutating tools require a unique actionId and the latest stateVersion. Calls affect only the virtual room."
+        "ToolQuest is a deterministic escape-room testbed with persistent runs. Call list_rooms to discover challenges, then start_run and look. Use list_runs and get_run to resume after a client or server restart. Mutating tools require a unique actionId and the latest stateVersion. Calls affect only the virtual room."
     }
   );
 
@@ -51,6 +52,24 @@ export function createToolQuestServer(
       }
     },
     () => handle(() => service.listRooms())
+  );
+
+  server.registerTool(
+    "list_runs",
+    {
+      title: "List ToolQuest Runs",
+      description:
+        "Discover persisted runs, newest first, with public room metadata, status, versions, hashes, and terminal scores. Optionally filter by status and limit the result count.",
+      inputSchema: ListRunsInputSchema,
+      outputSchema: ToolEnvelopeSchema,
+      annotations: {
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: false
+      }
+    },
+    (args) => handle(() => service.listRuns(args))
   );
 
   server.registerTool(
