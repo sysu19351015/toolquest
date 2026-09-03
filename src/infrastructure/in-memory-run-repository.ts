@@ -9,6 +9,10 @@ export class InMemoryRunRepository implements RunRepository {
     return record === undefined ? undefined : structuredClone(record);
   }
 
+  public list(): RunRecord[] {
+    return [...this.records.values()].map((record) => structuredClone(record));
+  }
+
   public save(record: RunRecord): void {
     this.records.set(record.runId, structuredClone(record));
   }

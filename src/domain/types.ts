@@ -94,6 +94,21 @@ export interface RoomSummary {
   introduction: string;
 }
 
+export interface RunSummary {
+  runId: string;
+  room: {
+    id: string;
+    title: string;
+    version: string;
+  };
+  status: RunStatus;
+  stateVersion: number;
+  eventSeq: number;
+  stateHash: string;
+  startedAt: string;
+  score?: ScoreBreakdown;
+}
+
 export interface GameState {
   roomId: string;
   roomVersion: string;
@@ -149,7 +164,19 @@ export interface ToolQuestCatalogSuccess {
   events: [];
 }
 
-export type ToolQuestResult = ToolQuestSuccess | ToolQuestCatalogSuccess;
+export interface ToolQuestRunListSuccess {
+  ok: true;
+  message: string;
+  data: {
+    runs: RunSummary[];
+  };
+  events: [];
+}
+
+export type ToolQuestResult =
+  | ToolQuestSuccess
+  | ToolQuestCatalogSuccess
+  | ToolQuestRunListSuccess;
 
 export interface CachedAction {
   fingerprint: string;
