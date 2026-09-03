@@ -25,5 +25,23 @@ export default tseslint.config(
       "@typescript-eslint/no-misused-promises": ["error", { "checksVoidReturn": false }],
       "@typescript-eslint/no-unused-vars": ["error", { "argsIgnorePattern": "^_" }]
     }
+  },
+  {
+    ...tseslint.configs.disableTypeChecked,
+    files: ["web/**/*.js"],
+    languageOptions: {
+      ...tseslint.configs.disableTypeChecked.languageOptions,
+      globals: {
+        Blob: "readonly",
+        URL: "readonly",
+        document: "readonly",
+        fetch: "readonly",
+        globalThis: "readonly",
+        history: "readonly",
+        location: "readonly",
+        setTimeout: "readonly",
+        window: "readonly"
+      }
+    }
   }
 );

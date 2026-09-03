@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#101713" />
+    <meta name="description" content="ToolQuest：给人类和 Agent 玩的确定性数字密室。" />
+    <meta property="og:title" content="ToolQuest · 数字密室实验室" />
+    <meta property="og:description" content="在可恢复、可验证、可评分的数字密室中挑战你的推理能力。" />
+    <meta property="og:image" content="http://127.0.0.1:4310/og.jpg" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="ToolQuest · 数字密室实验室" />
+    <meta name="twitter:description" content="在可恢复、可验证、可评分的数字密室中挑战你的推理能力。" />
+    <meta name="twitter:image" content="http://127.0.0.1:4310/og.jpg" />
+    <title>ToolQuest · 数字密室</title>
+    <link rel="stylesheet" href="/styles.css" />
+    <script src="/app.js" defer></script>
+  </head>
+  <body>
+    <div class="ambient ambient-one"></div>
+    <div class="ambient ambient-two"></div>
+    <main class="shell">
+      <header class="topbar">
+        <a class="brand" href="/" aria-label="ToolQuest 首页">
+          <span class="brand-mark">TQ</span>
+          <span><strong>ToolQuest</strong><small>数字密室实验室</small></span>
+        </a>
+        <div class="local-badge"><span></span> 本机安全运行</div>
+      </header>
+
+      <div id="landing-view">
+      <section class="intro" aria-labelledby="page-title">
+        <div>
+          <p class="eyebrow">HUMAN × AGENT TESTBED</p>
+          <h1 id="page-title">选一扇门，<br /><em>开始推理。</em></h1>
+          <p class="lede">不需要命令行知识。观察环境、发现线索、操作机关，并用可重放的过程证明你的答案。</p>
+        </div>
+        <aside class="signal-card" aria-label="运行说明">
+          <span class="signal-ring"></span>
+          <p>每一步都会被记录</p>
+          <strong>可恢复 · 可验证 · 可评分</strong>
+        </aside>
+      </section>
+
+      <section class="workspace" aria-labelledby="rooms-title">
+        <div class="section-heading">
+          <div><p class="eyebrow">AVAILABLE ROOMS</p><h2 id="rooms-title">选择挑战</h2></div>
+          <p id="room-count" class="room-count">正在读取房间…</p>
+        </div>
+        <div id="room-grid" class="room-grid" aria-live="polite"></div>
+      </section>
+
+      <section id="resume-section" class="resume-section" hidden>
+        <div class="section-heading"><div><p class="eyebrow">RECENT RUNS</p><h2>继续上次挑战</h2></div></div>
+        <div id="run-list" class="run-list"></div>
+      </section>
+      </div>
+
+      <section id="game-view" class="game-view" hidden aria-live="polite">
+        <div class="game-header">
+          <button id="back-button" class="back-button" type="button">← 返回房间</button>
+          <div class="game-title"><p class="eyebrow">ACTIVE RUN</p><h1 id="game-room-title">挑战</h1></div>
+          <div id="game-status" class="status-pill">进行中</div>
+        </div>
+
+        <div id="event-feedback" class="event-feedback" hidden></div>
+
+        <div class="game-layout">
+          <aside class="game-sidebar">
+            <div class="panel-label">当前位置</div>
+            <div class="location-index"><span id="location-number">01</span><small>LOCATION</small></div>
+            <div class="run-facts">
+              <div><span>状态版本</span><strong id="state-version">0</strong></div>
+              <div><span>剩余尝试</span><strong id="attempts-left">3</strong></div>
+              <div><span>记录事件</span><strong id="event-count">1</strong></div>
+            </div>
+            <button id="look-button" class="secondary-button full" type="button">环顾四周</button>
+            <button id="verify-button" class="text-button" type="button">验证运行记录</button>
+          </aside>
+
+          <section class="scene-panel">
+            <div class="scene-orbit" aria-hidden="true"><i></i><i></i><i></i></div>
+            <div class="scene-copy">
+              <p class="eyebrow">CURRENT LOCATION</p>
+              <h2 id="location-name">正在进入房间…</h2>
+              <p id="location-description" class="scene-description"></p>
+            </div>
+            <div class="scene-section">
+              <div class="scene-section-title"><span>可检查对象</span><small id="object-count">0</small></div>
+              <div id="object-list" class="choice-grid"></div>
+            </div>
+            <div class="scene-section">
+              <div class="scene-section-title"><span>可前往区域</span><small id="exit-count">0</small></div>
+              <div id="exit-list" class="exit-list"></div>
+            </div>
+          </section>
+
+          <aside class="detail-panel">
+            <div class="detail-section">
+              <div class="panel-label">调查笔记</div>
+              <div id="inspection-empty" class="empty-detail">选择一个可见对象进行检查，线索与可用操作会出现在这里。</div>
+              <div id="inspection-content" hidden>
+                <h3 id="inspection-title"></h3>
+                <p id="inspection-details"></p>
+                <div id="interaction-list" class="interaction-list"></div>
+              </div>
+            </div>
+            <div class="detail-section inventory-section">
+              <div class="panel-label">随身物品</div>
+              <div id="inventory-list" class="inventory-list"><span class="empty-chip">暂无物品</span></div>
+            </div>
+            <form id="answer-form" class="answer-form">
+              <label for="answer-input">最终答案</label>
+              <div><input id="answer-input" name="answer" autocomplete="off" maxlength="128" placeholder="输入推导出的答案" required /><button type="submit">提交</button></div>
+              <small>只有机关准备就绪后才会接受答案。</small>
+            </form>
+          </aside>
+        </div>
+
+        <section class="timeline-panel">
+          <div class="section-heading"><div><p class="eyebrow">EVENT TRACE</p><h2>行动时间线</h2></div><button id="report-button" class="text-button" type="button">下载评测报告</button></div>
+          <div id="timeline-list" class="timeline-list"></div>
+        </section>
+      </section>
+    </main>
+
+    <div id="toast" class="toast" role="status" aria-live="polite"></div>
+  </body>
+</html>
