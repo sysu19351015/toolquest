@@ -51,6 +51,22 @@ export const ListRunsInputSchema = z
   })
   .strict();
 
+export const AgentMetadataSchema = z
+  .object({
+    name: z
+      .string()
+      .trim()
+      .min(1)
+      .max(80)
+      .describe("Human-readable name of the Agent under evaluation."),
+    model: z.string().trim().min(1).max(120).optional(),
+    provider: z.string().trim().min(1).max(80).optional(),
+    version: z.string().trim().min(1).max(80).optional(),
+    framework: z.string().trim().min(1).max(80).optional()
+  })
+  .strict()
+  .describe("Optional public identity for the Agent under evaluation. Never include secrets or prompts.");
+
 export const StartRunInputSchema = z
   .object({
     roomId: IdentifierSchema.default("the-vault").describe(
@@ -61,7 +77,15 @@ export const StartRunInputSchema = z
       .min(1)
       .max(128)
       .optional()
-      .describe("Optional deterministic seed for reproducing this run.")
+      .describe("Optional deterministic seed for reproducing this run."),
+    agent: AgentMetadataSchema.optional(),
+    label: z
+      .string()
+      .trim()
+      .min(1)
+      .max(120)
+      .optional()
+      .describe("Optional public label for grouping or identifying this evaluation run.")
   })
   .strict();
 

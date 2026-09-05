@@ -38,6 +38,30 @@ function isBooleanRecord(value: unknown): value is Record<string, boolean> {
   );
 }
 
+function isBoundedString(value: unknown, maximum: number): value is string {
+  return (
+    typeof value === "string" &&
+    value.trim().length > 0 &&
+    value.length <= maximum
+  );
+}
+
+function isAgentMetadata(value: unknown): boolean {
+  if (!isObject(value) || !isBoundedString(value["name"], 80)) {
+    return false;
+  }
+  const allowed = new Set(["name", "model", "provider", "version", "framework"]);
+  if (!Object.keys(value).every((key) => allowed.has(key))) {
+    return false;
+  }
+  return (
+    (value["model"] === undefined || isBoundedString(value["model"], 120)) &&
+    (value["provider"] === undefined || isBoundedString(value["provider"], 80)) &&
+    (value["version"] === undefined || isBoundedString(value["version"], 80)) &&
+    (value["framework"] === undefined || isBoundedString(value["framework"], 80))
+  );
+}
+
 function isRunState(value: unknown): boolean {
   if (!isObject(value)) {
     return false;
@@ -112,6 +136,8 @@ function parseEnvelope(serialized: string, expectedRunId: string): RunRecord {
     !isNonNegativeInteger(record["eventSeq"]) ||
     !Array.isArray(record["events"]) ||
     !isObject(record["actions"]) ||
+    (record["agent"] !== undefined && !isAgentMetadata(record["agent"])) ||
+    (record["label"] !== undefined && !isBoundedString(record["label"], 120)) ||
     record["eventSeq"] !== record["events"].length ||
     !record["events"].every((event, index) =>
       isGameEvent(event, expectedRunId, index + 1)

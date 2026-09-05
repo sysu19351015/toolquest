@@ -14,6 +14,7 @@ import { replayRunRecord } from "../domain/replay.js";
 import { ToolQuestError } from "../domain/errors.js";
 import { createRunReport } from "./run-report.js";
 import type {
+  AgentMetadata,
   DomainActionResult,
   GameEvent,
   GameState,
@@ -34,6 +35,8 @@ import type {
 export interface StartRunInput {
   roomId: string;
   seed?: string;
+  agent?: AgentMetadata;
+  label?: string;
 }
 
 export interface ListRunsInput {
@@ -74,7 +77,17 @@ export interface RunServiceDependencies {
   onTraceError?: (error: unknown, event: GameEvent) => void;
 }
 
-export class RunService {
+export interface RunObserver {
+  listRooms(): ToolQuestCatalogSuccess;
+  listRuns(input: ListRunsInput): ToolQuestRunListSuccess;
+  getRun(runId: string): ToolQuestSuccess;
+  getRunObservation(runId: string): ToolQuestSuccess;
+  getRunTimeline(runId: string): ToolQuestSuccess;
+  replayRun(runId: string): ToolQuestSuccess;
+  exportReport(runId: string): ToolQuestSuccess;
+}
+
+export class RunService implements RunObserver {
   private readonly onTraceError: (error: unknown, event: GameEvent) => void;
 
   public constructor(private readonly dependencies: RunServiceDependencies) {
@@ -124,6 +137,10 @@ export class RunService {
           eventSeq: record.eventSeq,
           stateHash: hashGameState(record.state),
           startedAt: record.state.startedAt,
+          ...(record.agent === undefined
+            ? {}
+            : { agent: structuredClone(record.agent) }),
+          ...(record.label === undefined ? {} : { label: record.label }),
           ...(score === undefined ? {} : { score })
         };
       });
@@ -137,7 +154,20 @@ export class RunService {
   }
 
   public getRun(runId: string): ToolQuestSuccess {
+    return this.describeRun(this.requireRun(runId));
+  }
+
+  public getRunObservation(runId: string): ToolQuestSuccess {
     const record = this.requireRun(runId);
+    const result = this.describeRun(record);
+    return {
+      ...result,
+      data: { ...result.data, timeline: structuredClone(record.events) }
+    };
+  }
+
+  private describeRun(record: RunRecord): ToolQuestSuccess {
+    const runId = record.runId;
     const room = this.requireRoom(record.state.roomId);
     const publicView = lookAround(room, record.state);
     const score =
@@ -167,6 +197,10 @@ export class RunService {
         startedAt: record.state.startedAt,
         recordedEvents: record.events.length,
         cachedActions: Object.keys(record.actions).length,
+        ...(record.agent === undefined
+          ? {}
+          : { agent: structuredClone(record.agent) }),
+        ...(record.label === undefined ? {} : { label: record.label }),
         snapshot: publicView.data
       },
       events: [],
@@ -184,7 +218,13 @@ export class RunService {
       stateHash: hashGameState(record.state),
       status: record.state.status,
       message: `${record.events.length} public run events are available.`,
-      data: { timeline: structuredClone(record.events) },
+      data: {
+        timeline: structuredClone(record.events),
+        ...(record.agent === undefined
+          ? {}
+          : { agent: structuredClone(record.agent) }),
+        ...(record.label === undefined ? {} : { label: record.label })
+      },
       events: []
     };
   }
@@ -261,6 +301,12 @@ export class RunService {
     const at = this.dependencies.clock.now();
     const state = createInitialState(room, seed, at);
     const stateHash = hashGameState(state);
+    const agentFields =
+      input.agent === undefined
+        ? {}
+        : { agent: structuredClone(input.agent) };
+    const labelFields =
+      input.label === undefined ? {} : { label: input.label };
     const event: GameEvent = {
       runId,
       eventSeq: 1,
@@ -272,7 +318,9 @@ export class RunService {
       message: room.introduction,
       input: { roomId: room.id, seed },
       data: {
-        room: { id: room.id, title: room.title, version: room.version }
+        room: { id: room.id, title: room.title, version: room.version },
+        ...agentFields,
+        ...labelFields
       }
     };
     const result: ToolQuestSuccess = {
@@ -286,6 +334,8 @@ export class RunService {
       data: {
         room: { id: room.id, title: room.title, version: room.version },
         seed,
+        ...agentFields,
+        ...labelFields,
         nextStep: "Call look with this runId."
       },
       events: [event]
@@ -296,7 +346,9 @@ export class RunService {
       stateVersion: 0,
       eventSeq: 1,
       events: [event],
-      actions: {}
+      actions: {},
+      ...agentFields,
+      ...labelFields
     };
 
     this.dependencies.runs.save(record);
