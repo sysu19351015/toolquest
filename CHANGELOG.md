@@ -2,6 +2,21 @@
 
 All notable changes to ToolQuest are documented here.
 
+## 0.5.0
+
+- Reposition the homepage as a read-only Agent Evaluation Console.
+- Observe independently running MCP Agents through shared authoritative state,
+  automatic run discovery, resumable SSE, and detailed public tool events.
+- Add optional bounded Agent identity and run labels to start_run, run summaries,
+  snapshots, persistence, and reports without changing game-state hashes.
+- Keep human interaction in explicit Playground mode with a separate default
+  state directory; Observer endpoints reject all gameplay writes.
+- Show public state, event intervals, terminal scoring, replay validation, and
+  report export. Extend reports with Agent context and descriptive run metrics.
+- Preserve v0.4 records, existing MCP tool names, scoring, and answer redaction.
+- Document the single-writer topology and distinguish recorded environment
+  events from model reasoning, invocation errors, latency, tokens, and cost.
+
 ## 0.4.0
 
 - Add a local-first visual Web interface for non-technical players.

@@ -13,10 +13,14 @@
 Infrastructure implements application ports and may depend on domain types.
 The domain and application layers must not import the MCP SDK.
 
-The local Web adapter is a second delivery mechanism beside MCP. It calls the
-same RunService and never duplicates room rules. Static browser assets contain
-only presentation copy; authoritative state, hidden definitions, and answers
-remain on the server.
+The local Web adapter defaults to a read-only RunObserver interface beside MCP.
+The Agent host owns the single MCP writer; the Web observer reads the same
+absolute state directory. Explicit Playground mode is a separate human writer,
+using a separate default directory. No adapter duplicates room rules.
+
+Agent metadata and labels belong to RunRecord, not GameState. They are optional,
+strictly validated public text and never affect state hashes or room scoring.
+Storage version 1 remains readable when these fields are absent.
 
 ## Main invariants
 
@@ -68,11 +72,20 @@ Reports render only public events and replay results.
 
 ## Local Web boundary
 
-The visual server binds to the IPv4 loopback address and exposes narrowly
-scoped JSON endpoints. A random per-process token is returned during same-origin
-bootstrap and required in a custom header for every mutation. Request bodies
-are capped and validated by the same Zod schemas as MCP. Responses disable
-caching, framing, content sniffing, cross-origin connections, and inline code.
+The visual CLI binds to IPv4 loopback and rejects foreign hosts and origins.
+Observer mode exposes only read operations and does not return a write token.
+An observation response reads the snapshot and timeline from one record to avoid
+mixing two versions. Per-run SSE reads record.events every 500 ms, emits eventSeq
+IDs, resumes after Last-Event-ID, and clears timers when the client disconnects.
+The console periodically refreshes the newest 100 run summaries for discovery.
+
+Playground mode must be explicitly selected. A random per-process page token
+protects its write routes. Bodies are capped and validated by the MCP schemas.
+Responses disable caching, framing, content sniffing, and inline code.
+
+The event stream describes accepted game calls and world failures only. Adapter
+validation errors, private model reasoning, tokens, and costs are not recorded.
+Wall time between events includes Agent deliberation and is not tool latency.
 
 ## Adding a room
 

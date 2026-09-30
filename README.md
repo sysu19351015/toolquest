@@ -1,10 +1,10 @@
 # ToolQuest
 
-The escape room for tool-using agents.
+A deterministic task environment and live observation console for tool-using agents.
 
 ToolQuest exposes deterministic puzzle rooms as a local Model Context Protocol
-(MCP) server. Connect an agent, let it explore with tools, and inspect a
-reproducible event trace and score at the end.
+(MCP) server. The Agent plays through tools, ToolQuest records and scores its
+actions, and a human evaluator watches the public trace in a read-only console.
 
 [简体中文](README.zh-CN.md)
 
@@ -27,31 +27,37 @@ Requirements: Node.js 20 or newer.
 
     npm install
     npm run check
-    npm start
+    npm run build
 
-For the visual interface, run:
-
-    npm run web
-
-Then open `http://127.0.0.1:4310`. The interface is designed for non-technical
-players and keeps all run data on the local machine.
-
-The server communicates over stdio. A common MCP client configuration looks
-like this; replace the path with an absolute path on your machine:
+Configure the stdio server in your Agent host. Use real absolute paths and
+the same `TOOLQUEST_STATE_DIR` for both the Agent and the observation console:
 
     {
       "mcpServers": {
         "toolquest": {
           "command": "node",
-          "args": ["/absolute/path/to/toolquest/dist/server.js"]
+          "args": ["/absolute/path/to/toolquest/dist/server.js"],
+          "env": {
+            "TOOLQUEST_STATE_DIR": "/absolute/path/to/toolquest/.toolquest/state"
+          }
         }
       }
     }
 
+In a separate terminal, set that same absolute state-directory environment
+variable, then run:
+
+    npm run web
+
+Open `http://127.0.0.1:4310`. The Agent host starts the MCP writer; the Web
+console only reads its state. Keep exactly one writer per state directory.
+See [the evaluation guide](docs/evaluation-guide.md) for a complete Windows
+example, Agent instructions, inputs, outputs, and troubleshooting.
+
 ## Agent loop
 
 1. Call list_rooms and choose a challenge.
-2. Call start_run with the selected roomId.
+2. Call start_run with roomId, optional seed, public agent metadata, and label.
 3. Call look with the returned runId.
 4. Inspect visible target IDs to discover clues and interaction IDs.
 5. Use move or use with a unique actionId and the latest stateVersion.
@@ -62,17 +68,27 @@ After a client or server restart, call list_runs to rediscover recent run IDs,
 then call get_run and continue from the returned stateVersion and public
 snapshot.
 
-## Visual interface
+## Agent Evaluation Console
 
-Version 0.4 adds a local-first browser experience powered by the same RunService
-as the MCP server. Players can choose a room, inspect visible objects, move,
-use inventory items, submit answers, resume earlier runs, inspect the public
-event timeline, verify deterministic replay, and download a redacted report.
+Version 0.5 makes the homepage a read-only observation console. It discovers
+runs, identifies the Agent and model when provided, and streams recorded events
+over SSE. Inspect public tool inputs, environment outputs, event timestamps,
+state versions, hashes, snapshots, terminal scores, and replay verification.
+Reports include Agent context, elapsed event time, tool counts, and public input.
+Overview metrics describe the newest 100 runs, not an all-time benchmark.
 
-The browser never receives hidden room definitions or plaintext answers. The
-Web server listens only on `127.0.0.1`, applies restrictive browser security
-headers, limits request bodies, and requires a per-process page token for every
-state-changing request.
+Observer requests never call gameplay tools or append events. ToolQuest does
+not expose hidden definitions, the submitted answer field, or action digests.
+Agent metadata, seeds and labels are public: do not put secrets or prompts in them.
+
+The former human-operated interface remains an explicit Playground:
+
+    npm run playground
+
+Visit `http://127.0.0.1:4310/playground`. By default its state and traces use
+separate Playground directories. Never point a Playground writer and an MCP
+writer at the same state directory. The Web service binds to `127.0.0.1`, checks
+the request host/origin, and requires a page token for Playground writes.
 
 ## MCP tools
 
@@ -132,11 +148,11 @@ Use TOOLQUEST_STATE_DIR to change the state directory. Set
 TOOLQUEST_DISABLE_STATE=1 for ephemeral in-memory runs, or
 TOOLQUEST_DISABLE_TRACES=1 to disable public traces.
 
-State files are private server data. Action arguments are stored only as
-SHA-256 idempotency digests, and the submitted answer is never written in
-plaintext. Public JSONL events contain only answer length and outcome. Run
-discovery returns only public summaries. Structurally malformed state files
-fail closed instead of returning partial records.
+State files are private server data. Idempotency checks use SHA-256 argument
+digests; public action arguments are also recorded in events. The submitted
+answer field is not stored in plaintext: submission events contain answer
+length and outcome instead. Run discovery returns only public summaries.
+Structurally malformed state files fail closed instead of returning partial records.
 
 ## Architecture
 
@@ -161,7 +177,8 @@ The domain and application layers do not import the MCP SDK. See
     npm run build
     npm run check
 
-The test suite includes domain and application tests, Web API security and flow,
+The test suite includes domain and application tests, Observer read-only access,
+cross-service SSE, client race/reconnect recovery, Agent metadata, Playground API security and flow,
 restart discovery and recovery, malformed-state rejection, tamper-detecting
 replay, report redaction, an in-memory MCP contract test, and isolated real
 stdio subprocess tests.
@@ -178,12 +195,16 @@ as scenarios become more complex.
 
 ## Current scope
 
-Version 0.4 includes a responsive local Web interface, two built-in rooms,
-eleven MCP tools, atomic local run persistence, restart discovery and recovery,
-deterministic event replay, redacted Markdown reports, JSONL traces, and
-room-aware scoring. The file repository supports one server process per state
-directory. Remote hosting, authentication, community room loading,
-multi-process transactions, and a public model leaderboard remain out of scope.
+Version 0.5 provides the MCP task environment, read-only live observation,
+optional public Agent metadata, explicit human Playground, two built-in rooms,
+eleven tools, restart recovery, deterministic replay, and detailed reports.
+
+This release does not start or configure models, store API keys, schedule
+batches, compare model quality, or collect private chain-of-thought, tokens,
+model cost, or adapter-level invocation errors. Event gaps are not tool latency.
+Scoring remains the existing room heuristic (including a fixed safety component),
+not a validated general Agent capability benchmark. Remote hosting, authentication,
+community rooms, multi-writer transactions, and public leaderboards are deferred.
 
 ## Contributing and security
 
