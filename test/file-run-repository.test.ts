@@ -27,6 +27,22 @@ afterEach(() => {
 });
 
 describe("FileRunRepository", () => {
+  it("loads, observes, replays and resumes a fixed pre-metadata v0.4-format record", () => {
+    const stateDirectory = temporaryDirectory();
+    const legacy = readFileSync(new URL("./fixtures/v04-run.json", import.meta.url), "utf8");
+    const path = join(stateDirectory, "run_legacy-v04.json");
+    writeFileSync(path, legacy, "utf8");
+    const service = createDefaultRunService({ stateDirectory, persistTraces: false });
+    const run = service.getRunObservation("run_legacy-v04");
+    expect(run.stateHash).toBe("038f03c6");
+    expect(run.data["agent"]).toBeUndefined();
+    expect(run.data["timeline"]).toHaveLength(1);
+    expect(service.replayRun(run.runId).data["replay"]).toMatchObject({ valid: true });
+    expect(service.exportReport(run.runId).data["content"]).toContain("Agent: Not recorded");
+    expect(readFileSync(path, "utf8")).toBe(legacy);
+    expect(service.look(run.runId).eventSeq).toBe(2);
+  });
+
   it("recovers an active run after the service is recreated", () => {
     const stateDirectory = temporaryDirectory();
     const firstService = createDefaultRunService({
@@ -72,6 +88,63 @@ describe("FileRunRepository", () => {
     expect(readdirSync(stateDirectory)).toEqual([`${started.runId}.json`]);
     expect(readFileSync(join(stateDirectory, `${started.runId}.json`), "utf8"))
       .not.toContain(".tmp");
+    expect(
+      readFileSync(join(stateDirectory, `${started.runId}.json`), "utf8")
+    ).not.toContain("\"agent\"");
+  });
+
+  it("persists optional Agent metadata across service restarts", () => {
+    const stateDirectory = temporaryDirectory();
+    const firstService = createDefaultRunService({
+      persistRuns: true,
+      stateDirectory,
+      persistTraces: false
+    });
+    const started = firstService.startRun({
+      roomId: "the-vault",
+      agent: {
+        name: "Persistent Agent",
+        model: "model-p",
+        framework: "test-host"
+      },
+      label: "restart-observer"
+    });
+    const recoveredService = createDefaultRunService({
+      persistRuns: true,
+      stateDirectory,
+      persistTraces: false
+    });
+
+    const recovered = recoveredService.getRun(started.runId);
+    expect(recovered.data["agent"]).toEqual({
+      name: "Persistent Agent",
+      model: "model-p",
+      framework: "test-host"
+    });
+    expect(recovered.data["label"]).toBe("restart-observer");
+  });
+
+  it("rejects malformed or unknown Agent metadata fields", () => {
+    const stateDirectory = temporaryDirectory();
+    const service = createDefaultRunService({
+      persistRuns: true,
+      stateDirectory,
+      persistTraces: false
+    });
+    const started = service.startRun({ roomId: "the-vault" });
+    const path = join(stateDirectory, `${started.runId}.json`);
+    const envelope = JSON.parse(readFileSync(path, "utf8")) as {
+      record: Record<string, unknown>;
+    };
+    envelope.record["agent"] = {
+      name: "Agent",
+      apiKey: "must-not-be-accepted"
+    };
+    writeFileSync(path, JSON.stringify(envelope), "utf8");
+
+    expect(() => new FileRunRepository(stateDirectory).find(started.runId)).toThrow(
+      "Malformed ToolQuest run record."
+    );
   });
 
   it("rejects malformed persisted state instead of returning partial data", () => {

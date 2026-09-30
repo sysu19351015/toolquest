@@ -1,0 +1,21 @@
+{
+  "storageVersion": 1,
+  "record": {
+    "runId": "run_legacy-v04",
+    "state": {
+      "roomId": "the-vault", "roomVersion": "1.0.0", "seed": "legacy-fixture",
+      "status": "active", "locationId": "foyer", "inventory": [], "flags": {},
+      "attempts": 0, "startedAt": "2026-09-02T00:00:00.000Z"
+    },
+    "stateVersion": 0, "eventSeq": 1,
+    "events": [{
+      "runId": "run_legacy-v04", "eventSeq": 1, "stateVersion": 0,
+      "stateHash": "038f03c6", "tool": "start_run", "at": "2026-09-02T00:00:00.000Z",
+      "outcome": "success",
+      "message": "You are locked inside an old observatory. Find the three-digit vault code and open the vault door.",
+      "input": { "roomId": "the-vault", "seed": "legacy-fixture" },
+      "data": { "room": { "id": "the-vault", "title": "The Vault", "version": "1.0.0" } }
+    }],
+    "actions": {}
+  }
+}
