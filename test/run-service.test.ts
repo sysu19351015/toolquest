@@ -54,6 +54,34 @@ describe("RunService", () => {
     expect(JSON.stringify(allRuns)).not.toContain("flags");
   });
 
+  it("carries public Agent identity through run discovery and inspection", () => {
+    const { service } = createTestHarness();
+    const started = service.startRun({
+      roomId: "the-vault",
+      seed: "agent-context",
+      agent: {
+        name: "Planner Agent",
+        model: "model-v2",
+        provider: "local",
+        version: "2.1",
+        framework: "MCP Host"
+      },
+      label: "nightly-regression"
+    });
+
+    const summary = service.listRuns({ limit: 1 }).data.runs[0];
+    const detail = service.getRun(started.runId);
+    const timeline = service.getRunTimeline(started.runId);
+
+    expect(summary?.agent).toEqual(
+      expect.objectContaining({ name: "Planner Agent", model: "model-v2" })
+    );
+    expect(summary?.label).toBe("nightly-regression");
+    expect(detail.data["agent"]).toEqual(summary?.agent);
+    expect(detail.data["label"]).toBe("nightly-regression");
+    expect(timeline.data["agent"]).toEqual(summary?.agent);
+  });
+
   it("completes the built-in vault room and returns a deterministic score", () => {
     const { service, events } = createTestHarness();
     const started = service.startRun({ roomId: "the-vault", seed: "demo" });
@@ -137,12 +165,16 @@ describe("RunService", () => {
     const secondHarness = createTestHarness();
     const first = firstHarness.service.startRun({
       roomId: "the-vault",
-      seed: "repeatable"
+      seed: "repeatable",
+      agent: { name: "Agent A", model: "alpha" }
     });
     const second = secondHarness.service.startRun({
       roomId: "the-vault",
-      seed: "repeatable"
+      seed: "repeatable",
+      agent: { name: "Agent B", model: "beta" }
     });
+
+    expect(first.stateHash).toBe(second.stateHash);
 
     const firstResult = solveVault(firstHarness.service, first.runId);
     const secondResult = solveVault(secondHarness.service, second.runId);

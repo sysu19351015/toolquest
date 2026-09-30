@@ -4,6 +4,14 @@ export type EventOutcome = "success" | "world_failure";
 
 export type RoomDifficulty = "starter" | "intermediate" | "advanced";
 
+export interface AgentMetadata {
+  name: string;
+  model?: string;
+  provider?: string;
+  version?: string;
+  framework?: string;
+}
+
 export type GameToolName =
   | "start_run"
   | "look"
@@ -106,6 +114,8 @@ export interface RunSummary {
   eventSeq: number;
   stateHash: string;
   startedAt: string;
+  agent?: AgentMetadata;
+  label?: string;
   score?: ScoreBreakdown;
 }
 
@@ -190,6 +200,8 @@ export interface RunRecord {
   eventSeq: number;
   events: GameEvent[];
   actions: Record<string, CachedAction>;
+  agent?: AgentMetadata;
+  label?: string;
 }
 
 export interface DomainActionResult {

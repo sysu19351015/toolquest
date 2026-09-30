@@ -29,7 +29,7 @@ export function createToolQuestServer(
   service: RunService = createDefaultRunService()
 ): McpServer {
   const server = new McpServer(
-    { name: "toolquest", version: "0.4.0" },
+    { name: "toolquest", version: "0.5.0" },
     {
       instructions:
         "ToolQuest is a deterministic escape-room testbed with persistent runs. Call list_rooms to discover challenges, then start_run and look. Use list_runs and get_run to resume after a client or server restart. Mutating tools require a unique actionId and the latest stateVersion. Calls affect only the virtual room."
@@ -77,7 +77,7 @@ export function createToolQuestServer(
     {
       title: "Start ToolQuest Run",
       description:
-        "Create an isolated deterministic escape-room run. Returns an opaque runId, initial stateVersion, room introduction, and next-step guidance.",
+        "Create an isolated deterministic escape-room run. Optionally identify the Agent and run label for the evaluation console. Returns an opaque runId, initial stateVersion, room introduction, and next-step guidance.",
       inputSchema: StartRunInputSchema,
       outputSchema: ToolEnvelopeSchema,
       annotations: {

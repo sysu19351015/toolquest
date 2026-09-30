@@ -1,7 +1,7 @@
 {
   "name": "toolquest-mcp",
-  "version": "0.4.0",
-  "description": "A deterministic escape room testbed for tool-using agents, exposed as an MCP server.",
+  "version": "0.5.0",
+  "description": "A deterministic MCP evaluation environment and live observation console for tool-using agents.",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -17,6 +17,7 @@
   },
   "files": [
     "dist",
+    "docs",
     "web",
     "README.md",
     "README.zh-CN.md",
@@ -34,7 +35,9 @@
     "test:watch": "vitest",
     "start": "node dist/server.js",
     "start:web": "node dist/web/server.js",
+    "start:playground": "node dist/web/server.js --playground",
     "web": "npm run build --silent && node dist/web/server.js",
+    "playground": "npm run build --silent && node dist/web/server.js --playground",
     "prepack": "npm run build",
     "check": "npm run typecheck && npm run lint && npm test"
   },

@@ -86,6 +86,40 @@ describe("ToolQuest MCP contract", () => {
     expect(listedEnvelope["events"]).toEqual([]);
   });
 
+  it("accepts bounded public Agent metadata on start_run", async () => {
+    const started = await client.callTool({
+      name: "start_run",
+      arguments: {
+        roomId: "the-vault",
+        seed: "agent-metadata",
+        agent: {
+          name: "MCP Agent",
+          model: "model-contract",
+          provider: "local",
+          framework: "test-client"
+        },
+        label: "contract-run"
+      }
+    });
+    const startedEnvelope = envelope(started.structuredContent);
+    const startedData = envelope(startedEnvelope["data"]);
+
+    expect(started.isError).not.toBe(true);
+    expect(startedData["agent"]).toEqual(
+      expect.objectContaining({ name: "MCP Agent", model: "model-contract" })
+    );
+    expect(startedData["label"]).toBe("contract-run");
+
+    const rejected = await client.callTool({
+      name: "start_run",
+      arguments: {
+        roomId: "the-vault",
+        agent: { name: "Unsafe Agent", apiKey: "secret" }
+      }
+    });
+    expect(rejected.isError).toBe(true);
+  });
+
   it("inspects, replays, and reports a run without mutating it", async () => {
     const started = await client.callTool({
       name: "start_run",
