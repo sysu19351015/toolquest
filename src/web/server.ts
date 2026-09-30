@@ -6,10 +6,11 @@ import {
 } from "node:fs";
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import { fileURLToPath } from "node:url";
-import { join } from "node:path";
-import type { RunService } from "../application/run-service.js";
+import { join, resolve } from "node:path";
+import type { RunObserver, RunService } from "../application/run-service.js";
 import { createDefaultRunService } from "../composition.js";
 import { isToolQuestError } from "../domain/errors.js";
+import type { GameEvent, ToolQuestSuccess } from "../domain/types.js";
 import {
   InspectInputSchema,
   ListRunsInputSchema,
@@ -22,11 +23,28 @@ import {
 
 const MAX_BODY_BYTES = 64 * 1024;
 const DEFAULT_PORT = 4310;
+const DEFAULT_EVENT_POLL_INTERVAL_MS = 500;
+
+export type ToolQuestWebMode = "observer" | "playground";
 
 export interface ToolQuestWebServerOptions {
-  service?: RunService;
+  service?: RunObserver;
   staticDirectory?: string;
   csrfToken?: string;
+  mode?: ToolQuestWebMode;
+  eventPollIntervalMs?: number;
+}
+
+function supportsPlayground(service: RunObserver): service is RunService {
+  const candidate = service as Partial<RunService>;
+  return (
+    typeof candidate.startRun === "function" &&
+    typeof candidate.look === "function" &&
+    typeof candidate.inspect === "function" &&
+    typeof candidate.move === "function" &&
+    typeof candidate.use === "function" &&
+    typeof candidate.submit === "function"
+  );
 }
 
 function sendJson(
@@ -44,6 +62,22 @@ function applySecurityHeaders(response: ServerResponse): void {
   response.setHeader("Referrer-Policy", "no-referrer");
   response.setHeader("X-Content-Type-Options", "nosniff");
   response.setHeader("X-Frame-Options", "DENY");
+}
+
+function isLocalRequest(request: IncomingMessage): boolean {
+  try {
+    const host = new URL("http://" + (request.headers.host ?? ""));
+    if (!["127.0.0.1", "localhost", "[::1]"].includes(host.hostname)) return false;
+    if (host.username || host.password || host.pathname !== "/") return false;
+    if (Number(host.port || 80) !== request.socket.localPort) return false;
+    const origin = request.headers.origin;
+    return (
+      request.headers["sec-fetch-site"] !== "cross-site" &&
+      (origin === undefined || origin === host.origin)
+    );
+  } catch {
+    return false;
+  }
 }
 
 async function readJson(request: IncomingMessage): Promise<unknown> {
@@ -106,6 +140,16 @@ function requireToken(request: IncomingMessage, response: ServerResponse, token:
   return false;
 }
 
+function requirePlayground(response: ServerResponse, mode: ToolQuestWebMode): boolean {
+  if (mode === "playground") return true;
+  sendJson(response, 405, {
+    ok: false,
+    code: "READ_ONLY_OBSERVER",
+    message: "The evaluation console is read-only. Start explicit Playground mode for human actions."
+  });
+  return false;
+}
+
 function withRunId(body: unknown, runId: string): Record<string, unknown> {
   return {
     ...(typeof body === "object" && body !== null && !Array.isArray(body)
@@ -125,25 +169,125 @@ function serveAsset(response: ServerResponse, directory: string, asset: string):
   createReadStream(path).pipe(response);
 }
 
+function timelineFrom(result: ToolQuestSuccess): GameEvent[] {
+  const timeline = result.data["timeline"];
+  return Array.isArray(timeline) ? (timeline as GameEvent[]) : [];
+}
+
+function eventCursor(request: IncomingMessage, url: URL): number {
+  // EventSource retains the initial query on reconnect; the header is newer.
+  const raw = request.headers["last-event-id"] ?? url.searchParams.get("after");
+  const value = Array.isArray(raw) ? raw[0] : raw;
+  const parsed = Number(value ?? 0);
+  if (!Number.isSafeInteger(parsed) || parsed < 0) {
+    throw new Error("INVALID_CURSOR");
+  }
+  return parsed;
+}
+
+function streamRunEvents(
+  response: ServerResponse,
+  service: RunObserver,
+  runId: string,
+  initialCursor: number,
+  pollIntervalMs: number
+): void {
+  const initial = timelineFrom(service.getRunTimeline(runId));
+  if (initialCursor > (initial.at(-1)?.eventSeq ?? 0)) {
+    throw new Error("INVALID_CURSOR");
+  }
+  let cursor = initialCursor;
+  response.writeHead(200, {
+    "Content-Type": "text/event-stream; charset=utf-8",
+    Connection: "keep-alive",
+    "X-Accel-Buffering": "no"
+  });
+
+  const writePending = (events: GameEvent[]): void => {
+    if (response.destroyed || response.writableNeedDrain) return;
+    for (const event of events) {
+      if (event.eventSeq <= cursor) continue;
+      const accepted = response.write(
+        "id: " + event.eventSeq + "\nevent: run_event\ndata: " +
+        JSON.stringify(event) + "\n\n"
+      );
+      cursor = event.eventSeq;
+      if (!accepted) break;
+    }
+  };
+
+  writePending(initial);
+  response.write(": observer-ready\n\n");
+  const poll = setInterval(() => {
+    try {
+      writePending(timelineFrom(service.getRunTimeline(runId)));
+    } catch {
+      response.write("event: observer_error\n");
+      response.write('data: {"message":"Run data is temporarily unavailable."}\n\n');
+      response.end();
+    }
+  }, pollIntervalMs);
+  const heartbeat = setInterval(() => {
+    if (!response.destroyed && !response.writableNeedDrain) {
+      response.write(": heartbeat\n\n");
+    }
+  }, 15_000);
+  const cleanup = (): void => {
+    clearInterval(poll);
+    clearInterval(heartbeat);
+  };
+  response.once("close", cleanup);
+  response.once("finish", cleanup);
+}
+
 export function createToolQuestWebServer(
   options: ToolQuestWebServerOptions = {}
 ): ReturnType<typeof createServer> {
-  const service = options.service ?? createDefaultRunService();
+  const mode = options.mode ?? "observer";
+  const service = options.service ?? createDefaultRunService(
+    mode === "playground"
+      ? {
+          stateDirectory: process.env.TOOLQUEST_STATE_DIR ??
+            resolve(process.cwd(), ".toolquest", "playground-state"),
+          traceDirectory: resolve(process.cwd(), ".toolquest", "playground-runs")
+        }
+      : {}
+  );
+  const playgroundService = supportsPlayground(service) ? service : undefined;
+  if (mode === "playground" && playgroundService === undefined) {
+    throw new Error("Playground mode requires a game command service.");
+  }
   const staticDirectory =
     options.staticDirectory ?? fileURLToPath(new URL("../../web", import.meta.url));
   const csrfToken = options.csrfToken ?? randomUUID();
+  const eventPollIntervalMs =
+    options.eventPollIntervalMs ?? DEFAULT_EVENT_POLL_INTERVAL_MS;
+  if (!Number.isFinite(eventPollIntervalMs) || eventPollIntervalMs < 5) {
+    throw new Error("Event polling interval must be at least 5 milliseconds.");
+  }
 
   return createServer(async (request, response) => {
     applySecurityHeaders(response);
-    const url = new URL(request.url ?? "/", "http://127.0.0.1");
+    if (!isLocalRequest(request)) {
+      sendJson(response, 403, {
+        ok: false, code: "FOREIGN_ORIGIN", message: "Use the local ToolQuest origin."
+      });
+      return;
+    }
 
     try {
+      const url = new URL(request.url ?? "/", "http://127.0.0.1");
       if (request.method === "GET" && url.pathname === "/api/bootstrap") {
         sendJson(response, 200, {
           ok: true,
-          csrfToken,
+          mode,
+          capabilities: {
+            liveEvents: true,
+            playground: mode === "playground"
+          },
+          ...(mode === "playground" ? { csrfToken } : {}),
           rooms: service.listRooms().data.rooms,
-          runs: service.listRuns({ limit: 12 }).data.runs
+          runs: service.listRuns({ limit: 100 }).data.runs
         });
         return;
       }
@@ -162,14 +306,22 @@ export function createToolQuestWebServer(
       }
 
       if (request.method === "POST" && url.pathname === "/api/runs") {
+        if (!requirePlayground(response, mode)) return;
+        if (playgroundService === undefined) {
+          throw new Error("PLAYGROUND_SERVICE_UNAVAILABLE");
+        }
         if (!requireToken(request, response, csrfToken)) return;
         const input = StartRunInputSchema.parse(await readJson(request));
-        sendJson(response, 201, service.startRun(input));
+        sendJson(response, 201, playgroundService.startRun({
+          ...input,
+          agent: { name: "Human Playground", framework: "browser" },
+          label: input.label ?? "manual-baseline"
+        }));
         return;
       }
 
       const runRoute = url.pathname.match(
-        /^\/api\/runs\/(run_[a-zA-Z0-9-]+)(?:\/(look|inspect|move|use|submit|timeline|replay|report))?$/
+        /^\/api\/runs\/(run_[a-zA-Z0-9-]+)(?:\/(look|inspect|move|use|submit|timeline|replay|report|events|observation))?$/
       );
       if (runRoute !== null) {
         const runId = runRoute[1];
@@ -185,6 +337,10 @@ export function createToolQuestWebServer(
           sendJson(response, 200, service.getRunTimeline(runId));
           return;
         }
+        if (request.method === "GET" && action === "observation") {
+          sendJson(response, 200, service.getRunObservation(runId));
+          return;
+        }
         if (request.method === "GET" && action === "replay") {
           sendJson(response, 200, service.replayRun(runId));
           return;
@@ -193,21 +349,35 @@ export function createToolQuestWebServer(
           sendJson(response, 200, service.exportReport(runId));
           return;
         }
+        if (request.method === "GET" && action === "events") {
+          streamRunEvents(
+            response,
+            service,
+            runId,
+            eventCursor(request, url),
+            eventPollIntervalMs
+          );
+          return;
+        }
         if (request.method === "POST" && action !== undefined) {
+          if (!requirePlayground(response, mode)) return;
+          if (playgroundService === undefined) {
+            throw new Error("PLAYGROUND_SERVICE_UNAVAILABLE");
+          }
           if (!requireToken(request, response, csrfToken)) return;
           const body = withRunId(await readJson(request), runId);
           const result = (() => {
             switch (action) {
               case "look":
-                return service.look(LookInputSchema.parse(body).runId);
+                return playgroundService.look(LookInputSchema.parse(body).runId);
               case "inspect":
-                return service.inspect(InspectInputSchema.parse(body));
+                return playgroundService.inspect(InspectInputSchema.parse(body));
               case "move":
-                return service.move(MoveInputSchema.parse(body));
+                return playgroundService.move(MoveInputSchema.parse(body));
               case "use":
-                return service.use(UseInputSchema.parse(body));
+                return playgroundService.use(UseInputSchema.parse(body));
               case "submit":
-                return service.submit(SubmitInputSchema.parse(body));
+                return playgroundService.submit(SubmitInputSchema.parse(body));
               default:
                 throw new Error("METHOD_NOT_ALLOWED");
             }
@@ -217,8 +387,20 @@ export function createToolQuestWebServer(
         }
       }
 
-      if (request.method === "GET" && (url.pathname === "/" || url.pathname === "/index.html")) {
+      if (request.method === "GET" && ["/", "/index.html", "/observer.html"].includes(url.pathname)) {
+        serveAsset(response, staticDirectory, "observer.html");
+        return;
+      }
+      if (request.method === "GET" && url.pathname === "/playground") {
         serveAsset(response, staticDirectory, "index.html");
+        return;
+      }
+      if (request.method === "GET" && url.pathname === "/observer.css") {
+        serveAsset(response, staticDirectory, "observer.css");
+        return;
+      }
+      if (request.method === "GET" && url.pathname === "/observer.js") {
+        serveAsset(response, staticDirectory, "observer.js");
         return;
       }
       if (request.method === "GET" && url.pathname === "/styles.css") {
@@ -249,8 +431,11 @@ function parsePort(value: string | undefined): number {
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
   const port = parsePort(process.env.TOOLQUEST_WEB_PORT);
-  const server = createToolQuestWebServer();
+  const mode: ToolQuestWebMode = process.argv.includes("--playground")
+    ? "playground"
+    : "observer";
+  const server = createToolQuestWebServer({ mode });
   server.listen(port, "127.0.0.1", () => {
-    console.log(`ToolQuest Web is ready at http://127.0.0.1:${port}`);
+    console.log(`ToolQuest ${mode} is ready at http://127.0.0.1:${port}`);
   });
 }

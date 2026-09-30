@@ -429,6 +429,12 @@ async function downloadReport() {
 async function bootstrap() {
   try {
     const result = await api("/api/bootstrap");
+    if (result.capabilities?.playground !== true) {
+      roomCount.textContent = "当前是只读观察模式";
+      roomGrid.replaceChildren(element("p", "error-card", "人工 Playground 未启用。请返回首页观察 Agent；需要手动体验时，单独运行 npm run playground（默认使用独立记录目录）。"));
+      resumeSection.hidden = true;
+      return;
+    }
     state.csrfToken = result.csrfToken;
     state.rooms = result.rooms;
     state.runs = result.runs;

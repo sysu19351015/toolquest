@@ -1,0 +1,151 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content="实时观察 ToolQuest 中 Agent 的工具调用、状态变化、评分与可复现报告。" />
+    <meta property="og:title" content="ToolQuest · Agent Evaluation Console" />
+    <meta property="og:description" content="面向工具调用 Agent 的本地确定性评测控制台。" />
+    <meta property="og:image" content="/og.jpg" />
+    <title>ToolQuest · Agent Evaluation Console</title>
+    <link rel="stylesheet" href="/observer.css" />
+    <script src="/observer.js" defer></script>
+  </head>
+  <body>
+    <a class="skip-link" href="#run-workspace">跳到运行详情</a>
+    <header class="topbar">
+      <a class="brand" href="/" aria-label="ToolQuest Agent Evaluation Console 首页">
+        <span class="brand-mark" aria-hidden="true">TQ</span>
+        <span><strong>ToolQuest</strong><small>AGENT EVALUATION CONSOLE</small></span>
+      </a>
+      <div class="topbar-actions">
+        <div id="stream-status" class="stream-status connecting" role="status">
+          <span aria-hidden="true"></span><strong>正在连接事件流</strong>
+        </div>
+        <a id="playground-link" class="quiet-link" href="/playground" hidden>人工 Playground</a>
+      </div>
+    </header>
+
+    <main>
+      <section class="overview" aria-labelledby="page-title">
+        <div>
+          <p class="eyebrow">LOCAL · DETERMINISTIC · MCP</p>
+          <h1 id="page-title">Agent 运行观察台</h1>
+          <p>Agent 是操作者，ToolQuest 是环境与裁判。这里仅展示可审计的工具调用，不采集私有思维链。</p>
+        </div>
+        <div class="overview-actions">
+          <label class="filter-control" for="status-filter">运行状态
+            <select id="status-filter">
+              <option value="all">全部</option>
+              <option value="active">进行中</option>
+              <option value="solved">已完成</option>
+              <option value="failed">未通过</option>
+            </select>
+          </label>
+          <button id="refresh-button" class="secondary-button" type="button">立即刷新</button>
+        </div>
+      </section>
+
+      <section class="metric-grid" aria-label="运行概览">
+        <article><span>近期运行</span><strong id="metric-total">0</strong><small>概览范围：最新 100 次</small></article>
+        <article><span>活跃运行</span><strong id="metric-active">0</strong><small>等待新事件</small></article>
+        <article><span>任务通过率</span><strong id="metric-pass">—</strong><small>仅统计终态运行</small></article>
+        <article><span>平均得分</span><strong id="metric-score">—</strong><small>满分 100</small></article>
+      </section>
+
+      <section class="console-grid">
+        <aside class="run-rail" aria-labelledby="runs-title">
+          <div class="panel-heading">
+            <div><p class="eyebrow">RUN INDEX</p><h2 id="runs-title">测试运行</h2></div>
+            <span id="run-count" class="count-badge">0</span>
+          </div>
+          <div id="run-list" class="run-list" role="list"></div>
+          <div id="run-list-empty" class="rail-empty">
+            当前没有匹配的运行。
+          </div>
+        </aside>
+
+        <section id="run-workspace" class="run-workspace" tabindex="-1" aria-label="运行详情">
+          <div id="workspace-empty" class="workspace-empty">
+            <span class="empty-signal" aria-hidden="true">⌁</span>
+            <p class="eyebrow">WAITING FOR AGENT</p>
+            <h2>等待 Agent 创建测试运行</h2>
+            <p>将 ToolQuest MCP Server 连接到 Agent。Agent 调用 <code>start_run</code> 后，运行会自动出现在这里。</p>
+            <ol>
+              <li>让 Agent 调用 <code>list_rooms</code> 选择任务。</li>
+              <li>调用 <code>start_run</code>，可附带 Agent 名称与模型信息。</li>
+              <li>本页面将实时刷新工具调用和评测结果。</li>
+            </ol>
+          </div>
+
+          <article id="run-detail" hidden>
+            <header class="run-header">
+              <div>
+                <p id="run-id" class="run-id">RUN —</p>
+                <h2 id="run-title">未选择运行</h2>
+                <p id="run-agent" class="run-agent">Agent 信息未记录</p>
+              </div>
+              <span id="run-status" class="status-badge">未知</span>
+            </header>
+
+            <div class="telemetry-grid">
+              <article><span>事件</span><strong id="run-events">0</strong></article>
+              <article><span>状态版本</span><strong id="run-version">0</strong></article>
+              <article><span>首末事件跨度</span><strong id="run-duration">0s</strong></article>
+              <article><span>状态哈希</span><strong id="run-hash">—</strong></article>
+            </div>
+
+            <section class="world-panel" aria-labelledby="world-title">
+              <div class="section-heading">
+                <div><p class="eyebrow">PUBLIC STATE</p><h3 id="world-title">环境快照</h3></div>
+                <span id="attempts-label">剩余尝试 —</span>
+              </div>
+              <div class="world-grid">
+                <div><span>当前位置</span><strong id="world-location">—</strong><p id="world-description"></p></div>
+                <div><span>背包</span><div id="world-inventory" class="chip-list"><span>空</span></div></div>
+              </div>
+            </section>
+
+            <section class="trace-panel" aria-labelledby="trace-title">
+              <div class="section-heading">
+                <div><p class="eyebrow">AUDITABLE TOOL TRACE</p><h3 id="trace-title">工具调用时间线</h3></div>
+                <span id="trace-summary">0 次调用</span>
+              </div>
+              <div id="timeline" class="timeline"></div>
+            </section>
+          </article>
+        </section>
+
+        <aside class="analysis-rail" aria-labelledby="analysis-title">
+          <div class="panel-heading"><div><p class="eyebrow">EVALUATION</p><h2 id="analysis-title">结果与验证</h2></div></div>
+          <section class="agent-card">
+            <span>被测 Agent</span>
+            <strong id="agent-name">尚未选择</strong>
+            <dl>
+              <div><dt>模型</dt><dd id="agent-model">—</dd></div>
+              <div><dt>供应方</dt><dd id="agent-provider">—</dd></div>
+              <div><dt>运行标签</dt><dd id="run-label">—</dd></div>
+            </dl>
+          </section>
+          <section class="score-card">
+            <div class="score-total"><span>总分</span><strong id="score-total">—</strong><small>/ 100</small></div>
+            <div id="score-bars" class="score-bars">
+              <p>运行结束后生成评分。</p>
+            </div>
+            <p class="privacy-note">房间内的启发式评分；安全项当前固定 20 分，不代表通用安全能力。</p>
+          </section>
+          <section class="verification-card">
+            <span>确定性重放</span>
+            <strong id="replay-status">尚未验证</strong>
+            <p id="replay-detail">选择运行后可验证事件与最终状态是否一致。</p>
+            <button id="verify-button" class="secondary-button full" type="button" disabled>验证运行</button>
+            <button id="report-button" class="primary-button full" type="button" disabled>下载评测报告</button>
+          </section>
+          <p class="privacy-note">事件间隔不是模型延迟。只展示公开工具数据；提交答案和动作指纹已脱敏。Agent 名称、模型和标签由调用方自报，请勿填写密钥。</p>
+        </aside>
+      </section>
+    </main>
+    <div id="event-announcement" class="sr-only" role="status" aria-live="polite" aria-atomic="true"></div>
+    <div id="toast" class="toast" role="status" aria-live="polite"></div>
+  </body>
+</html>

@@ -32,7 +32,9 @@ export default tseslint.config(
     languageOptions: {
       ...tseslint.configs.disableTypeChecked.languageOptions,
       globals: {
+        AbortController: "readonly",
         Blob: "readonly",
+        EventSource: "readonly",
         URL: "readonly",
         document: "readonly",
         fetch: "readonly",
